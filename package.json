@@ -30,6 +30,7 @@
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit && tsc -p test --noEmit",
     "test": "vitest",
+    "demo": "vite examples --host 127.0.0.1",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
     "tsdown": "*",
     "tsnapi": "^0.1.1",
     "typescript": "*",
+    "vite": "^8.0.16",
     "vitest": "*"
   }
 }
