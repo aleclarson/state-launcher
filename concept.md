@@ -43,8 +43,8 @@ The first version should include only the bare necessities:
 - floating launcher button
 - open/close panel
 - programmatic launchable state definition
-- programmatic command firing
-- granular programmatic command registration
+- programmatic command firing through `command.fire()`
+- granular launch handler registration through launchable state definitions/hooks
 - basic Preact launchable state hooks from `state-launcher/preact`
 - registered command list grouped by command id prefix
 - fuzzy filtering with `fuzzysort2`
@@ -82,31 +82,26 @@ export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed
 export const inboxManyMessages = defineLaunchableState("inbox.manyMessages");
 ```
 
-Application code registers commands one at a time:
+Application code can attach a launch handler when defining a launchable state:
 
 ```ts
-import { registerCommand } from "state-launcher";
-import { billingPaymentFailed } from "./commands";
-
-const unregister = registerCommand({
-  command: billingPaymentFailed,
+export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed", {
   label: "Payment failed",
   description: "Customer has a failed payment method.",
   launch() {
     // Host application code owns the behavior.
   },
 });
-
-unregister();
 ```
+
+For shared command symbols, keep definitions in a dedicated module and attach handlers from feature code or a Preact hook.
 
 Commands can also be fired programmatically without using the visual panel:
 
 ```ts
-import { fireCommand } from "state-launcher";
 import { billingPaymentFailed } from "./commands";
 
-await fireCommand(billingPaymentFailed);
+await billingPaymentFailed.fire();
 ```
 
 Suggested API shape:
@@ -127,18 +122,16 @@ export type MountedStateLauncher = {
 };
 
 export type StateLauncherCommand<Id extends string = string> = {
-  id: Id;
+  readonly id: Id;
+  fire(): Promise<void>;
 };
 
-export type StateLauncherRegisteredCommand<Id extends string = string> = {
-  command: StateLauncherCommand<Id>;
-  label: string;
+export type LaunchableStateOptions = {
+  label?: string;
   description?: string;
   tags?: string[];
-  launch(): void | Promise<void>;
+  launch?: () => void | Promise<void>;
 };
-
-export type UnregisterStateLauncherCommand = () => void;
 
 export function mountStateLauncher(
   options?: MountStateLauncherOptions,
@@ -146,34 +139,30 @@ export function mountStateLauncher(
 
 export function defineLaunchableState<const Id extends string>(
   id: Id,
+  options?: LaunchableStateOptions,
 ): StateLauncherCommand<Id>;
 
 export function fireCommand(command: StateLauncherCommand | string): Promise<void>;
-
-export function registerCommand(
-  command: StateLauncherRegisteredCommand,
-): UnregisterStateLauncherCommand;
 
 export function unregisterCommand(command: StateLauncherCommand | string): void;
 export function clearCommands(): void;
 ```
 
-Registering a command with an existing command id should replace the previous registration for that id. `registerCommand` returns an unregister function for lifecycle cleanup.
+Calling `defineLaunchableState` with options registers or replaces the launch handler for that command id. Repeated calls with the same id should return the same command object and update its internal record, so a dedicated symbol module and feature-local handler attachment stay connected.
 
-`fireCommand` should find the registered command for the given command symbol or id and run its `launch` callback. Missing commands and launch errors should reject the returned promise and be reported in the UI when fired from the panel.
+Each `StateLauncherCommand` has a `fire()` method that runs its registered launch handler. `fireCommand` is a convenience wrapper for code that only has a command id or generic command reference. Missing handlers and launch errors should reject/throw and be reported in the UI when fired from the panel.
 
 Launchable state symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
 
 ```ts
-import { fireCommand, registerCommand } from "state-launcher";
-import { billingPaymentFailed, inboxManyMessages } from "./commands";
+import { defineLaunchableState } from "state-launcher";
+import { inboxManyMessages } from "./commands";
 
-registerCommand({
-  command: billingPaymentFailed,
+export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed", {
   label: "Payment failed",
   async launch() {
     await setupBillingFailure();
-    await fireCommand(inboxManyMessages);
+    await inboxManyMessages.fire();
   },
 });
 ```
@@ -187,8 +176,7 @@ import { useLaunchableState } from "state-launcher/preact";
 import { billingPaymentFailed } from "./commands";
 
 export function BillingDebugCommands() {
-  useLaunchableState({
-    command: billingPaymentFailed,
+  useLaunchableState(billingPaymentFailed, {
     label: "Payment failed",
     launch() {
       // Host application behavior.
@@ -203,27 +191,39 @@ Suggested submodule API:
 
 ```ts
 export function useLaunchableState(
-  command: StateLauncherRegisteredCommand,
+  command: StateLauncherCommand,
+  options: LaunchableStateOptions & { launch: () => void | Promise<void> },
 ): void;
 ```
 
-The hook should register on mount/update and unregister the same command on unmount. It should not mount the launcher UI automatically.
+The hook should attach the launch handler on mount/update and unregister the same command on unmount. It should not mount the launcher UI automatically.
 
 ## Runtime Model
 
-`state-launcher` keeps a simple in-memory registry of commands.
+`state-launcher` keeps command metadata internal. Command objects are tagged in a `WeakMap` so arbitrary objects cannot be treated as valid `StateLauncherCommand` instances just because they have an `id` property.
 
 ```ts
+type CommandRecord = {
+  id: string;
+  label?: string;
+  description?: string;
+  tags?: string[];
+  launch?: () => void | Promise<void>;
+};
+
 type LauncherRegistry = {
-  commands: Map<string, StateLauncherRegisteredCommand>;
+  commandRecords: WeakMap<StateLauncherCommand, CommandRecord>;
+  commandsById: Map<string, StateLauncherCommand>;
 };
 ```
 
+The public `id` is for display, filtering, and explicit string-based firing. The internal WeakMap tag is the source of truth for command identity and launch metadata.
+
 Command groups are derived from the command id prefix before the first `.`. For example, `billing.paymentFailed` belongs to the `billing` group. Commands without a `.` can be shown in an ungrouped/default section. The MVP should not include explicit group/surface registration.
 
-When a command is launched from the panel or through `fireCommand`, the package calls that command's `launch` function. Errors should be caught and shown in the UI without breaking the launcher.
+When a command is launched from the panel, through `command.fire()`, or through `fireCommand`, the package calls that command's registered `launch` function. If no launch handler is registered, firing throws/rejects. Errors should be caught and shown in the UI without breaking the launcher.
 
-Command registrations are intentionally ephemeral and are not persisted by default.
+Launch handler registrations are intentionally ephemeral and are not persisted by default.
 
 ## User Experience
 
@@ -252,7 +252,7 @@ Baseline behavior:
 - Enter fires the selected command
 - clicking a command also runs its `launch` callback
 - empty registry shows: "No commands registered."
-- command re-registration updates the visible list
+- redefining a launchable state updates the visible list
 
 ## Isolation Strategy
 
@@ -298,10 +298,13 @@ src/
 
 - `mountStateLauncher` mounts an isolated launcher into `document.body` by default.
 - `defineLaunchableState` creates typed launchable state symbols for stable command ids.
-- `registerCommand` registers one launchable command.
-- Registering an existing command id replaces that command.
+- `defineLaunchableState` can attach or replace a launch handler for one launchable state.
+- `StateLauncherCommand` objects are internally tagged with a WeakMap.
+- Each `StateLauncherCommand` includes a `fire()` method.
+- Firing a command with no registered handler throws/rejects.
 - Command groups are derived from each command id's `<group>.*` prefix; no explicit surface/group registration is required.
-- `fireCommand` launches a registered command programmatically.
+- `command.fire()` launches a registered command programmatically.
+- `fireCommand` remains available as a convenience wrapper for generic command references or string ids.
 - `state-launcher/preact` exports a basic `useLaunchableState` hook.
 - The panel displays registered commands grouped by the command id prefix before the first `.`.
 - The filter input is focused when the panel opens.
