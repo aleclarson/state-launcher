@@ -4,6 +4,7 @@ import {
   launchRegisteredCommand,
   unregisterRegisteredCommand,
 } from './registry'
+import { mountLauncher } from './launcher'
 
 export type MountStateLauncherOptions = {
   target?: HTMLElement
@@ -31,8 +32,8 @@ export type LaunchableStateOptions = {
   launch?: () => void | Promise<void>
 }
 
-export function mountStateLauncher(_options: MountStateLauncherOptions = {}): MountedStateLauncher {
-  throw new Error('mountStateLauncher is not implemented yet.')
+export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
+  return mountLauncher(options)
 }
 
 export function defineLaunchableState<const Id extends string>(
