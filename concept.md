@@ -176,11 +176,8 @@ import { useLaunchableState } from "state-launcher/preact";
 import { billingPaymentFailed } from "./commands";
 
 export function BillingDebugCommands() {
-  useLaunchableState(billingPaymentFailed, {
-    label: "Payment failed",
-    launch() {
-      // Host application behavior.
-    },
+  useLaunchableState(billingPaymentFailed, () => {
+    // Host application behavior.
   });
 
   return null;
@@ -192,11 +189,11 @@ Suggested submodule API:
 ```ts
 export function useLaunchableState(
   command: StateLauncherCommand,
-  options: LaunchableStateOptions & { launch: () => void | Promise<void> },
+  handler: () => void | Promise<void>,
 ): void;
 ```
 
-The hook should attach the launch handler on mount/update and unregister the same command on unmount. It should not mount the launcher UI automatically.
+The hook should attach only the launch handler on mount/update and unregister that handler on unmount. Label, description, and tags are provided by `defineLaunchableState`, not by the hook. The hook should not mount the launcher UI automatically.
 
 ## Runtime Model
 
