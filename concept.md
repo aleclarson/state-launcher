@@ -46,7 +46,7 @@ The first version should include only the bare necessities:
 - programmatic command firing
 - granular programmatic command registration
 - basic Preact command registration hooks from `state-launcher/preact`
-- registered command list grouped by surface
+- registered command list grouped by command id prefix
 - fuzzy filtering with `fuzzysort2`
 - keyboard navigation for the filtered command list
 - command activation
@@ -72,7 +72,7 @@ const launcher = mountStateLauncher({
 launcher.unmount();
 ```
 
-Application code defines command symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining:
+Application code defines command symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining. The prefix before the first `.` is used as the UI group:
 
 ```ts
 // src/debug/commands.ts
@@ -89,8 +89,6 @@ import { registerCommand } from "state-launcher";
 import { billingPaymentFailed } from "./commands";
 
 const unregister = registerCommand({
-  surface: "billing",
-  surfaceTitle: "Billing",
   command: billingPaymentFailed,
   label: "Payment failed",
   description: "Customer has a failed payment method.",
@@ -133,8 +131,6 @@ export type StateLauncherCommand<Id extends string = string> = {
 };
 
 export type StateLauncherRegisteredCommand<Id extends string = string> = {
-  surface: string;
-  surfaceTitle?: string;
   command: StateLauncherCommand<Id>;
   label: string;
   description?: string;
@@ -173,7 +169,6 @@ import { fireCommand, registerCommand } from "state-launcher";
 import { billingPaymentFailed, inboxManyMessages } from "./commands";
 
 registerCommand({
-  surface: "billing",
   command: billingPaymentFailed,
   label: "Payment failed",
   async launch() {
@@ -193,8 +188,6 @@ import { billingPaymentFailed } from "./commands";
 
 export function BillingDebugCommands() {
   useRegisterCommand({
-    surface: "billing",
-    surfaceTitle: "Billing",
     command: billingPaymentFailed,
     label: "Payment failed",
     launch() {
@@ -226,7 +219,7 @@ type LauncherRegistry = {
 };
 ```
 
-Surfaces are derived from registered commands when rendering the panel.
+Command groups are derived from the command id prefix before the first `.`. For example, `billing.paymentFailed` belongs to the `billing` group. Commands without a `.` can be shown in an ungrouped/default section. The MVP should not include explicit group/surface registration.
 
 When a command is launched from the panel or through `fireCommand`, the package calls that command's `launch` function. Errors should be caught and shown in the UI without breaking the launcher.
 
@@ -239,11 +232,11 @@ The MVP UI should be minimal:
 ```txt
 [Commands]
 
-Billing
+billing
   Payment failed
   Empty invoices
 
-Inbox
+inbox
   Empty inbox
   Many messages
 ```
@@ -253,7 +246,7 @@ Baseline behavior:
 - launcher starts closed unless `initiallyOpen` is true
 - open panel lists registered commands
 - when the panel opens, the filter input receives focus
-- filtering uses `fuzzysort2` across command id, label, description, surface title, and tags
+- filtering uses `fuzzysort2` across command id, derived group, label, description, and tags
 - Arrow Up and Arrow Down change the selected command in the filtered list
 - typing in the filter resets selection to the first matching command
 - Enter fires the selected command
@@ -307,9 +300,10 @@ src/
 - `defineCommand` creates typed command symbols for stable command ids.
 - `registerCommand` registers one launchable command.
 - Registering an existing command id replaces that command.
+- Command groups are derived from each command id's `<group>.*` prefix; no explicit surface/group registration is required.
 - `fireCommand` launches a registered command programmatically.
 - `state-launcher/preact` exports a basic `useRegisterCommand` hook.
-- The panel displays registered commands.
+- The panel displays registered commands grouped by the command id prefix before the first `.`.
 - The filter input is focused when the panel opens.
 - Filtering uses `fuzzysort2`.
 - Arrow keys change the selected command.
