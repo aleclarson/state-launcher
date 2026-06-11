@@ -42,10 +42,10 @@ The first version should include only the bare necessities:
 - Shadow DOM isolated mount
 - floating launcher button
 - open/close panel
-- programmatic command symbol definition
+- programmatic launchable state definition
 - programmatic command firing
 - granular programmatic command registration
-- basic Preact command registration hooks from `state-launcher/preact`
+- basic Preact launchable state hooks from `state-launcher/preact`
 - registered command list grouped by command id prefix
 - fuzzy filtering with `fuzzysort2`
 - keyboard navigation for the filtered command list
@@ -72,14 +72,14 @@ const launcher = mountStateLauncher({
 launcher.unmount();
 ```
 
-Application code defines command symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining. The prefix before the first `.` is used as the UI group:
+Application code defines launchable state symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining. The prefix before the first `.` is used as the UI group:
 
 ```ts
 // src/debug/commands.ts
-import { defineCommand } from "state-launcher";
+import { defineLaunchableState } from "state-launcher";
 
-export const billingPaymentFailed = defineCommand("billing.paymentFailed");
-export const inboxManyMessages = defineCommand("inbox.manyMessages");
+export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed");
+export const inboxManyMessages = defineLaunchableState("inbox.manyMessages");
 ```
 
 Application code registers commands one at a time:
@@ -144,7 +144,7 @@ export function mountStateLauncher(
   options?: MountStateLauncherOptions,
 ): MountedStateLauncher;
 
-export function defineCommand<const Id extends string>(
+export function defineLaunchableState<const Id extends string>(
   id: Id,
 ): StateLauncherCommand<Id>;
 
@@ -162,7 +162,7 @@ Registering a command with an existing command id should replace the previous re
 
 `fireCommand` should find the registered command for the given command symbol or id and run its `launch` callback. Missing commands and launch errors should reject the returned promise and be reported in the UI when fired from the panel.
 
-Command symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
+Launchable state symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
 
 ```ts
 import { fireCommand, registerCommand } from "state-launcher";
@@ -183,11 +183,11 @@ registerCommand({
 `state-launcher/preact` should provide basic hooks for Preact applications that want command registration to follow component lifecycle.
 
 ```ts
-import { useRegisterCommand } from "state-launcher/preact";
+import { useLaunchableState } from "state-launcher/preact";
 import { billingPaymentFailed } from "./commands";
 
 export function BillingDebugCommands() {
-  useRegisterCommand({
+  useLaunchableState({
     command: billingPaymentFailed,
     label: "Payment failed",
     launch() {
@@ -202,7 +202,7 @@ export function BillingDebugCommands() {
 Suggested submodule API:
 
 ```ts
-export function useRegisterCommand(
+export function useLaunchableState(
   command: StateLauncherRegisteredCommand,
 ): void;
 ```
@@ -297,12 +297,12 @@ src/
 ## Acceptance Criteria
 
 - `mountStateLauncher` mounts an isolated launcher into `document.body` by default.
-- `defineCommand` creates typed command symbols for stable command ids.
+- `defineLaunchableState` creates typed launchable state symbols for stable command ids.
 - `registerCommand` registers one launchable command.
 - Registering an existing command id replaces that command.
 - Command groups are derived from each command id's `<group>.*` prefix; no explicit surface/group registration is required.
 - `fireCommand` launches a registered command programmatically.
-- `state-launcher/preact` exports a basic `useRegisterCommand` hook.
+- `state-launcher/preact` exports a basic `useLaunchableState` hook.
 - The panel displays registered commands grouped by the command id prefix before the first `.`.
 - The filter input is focused when the panel opens.
 - Filtering uses `fuzzysort2`.
