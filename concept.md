@@ -7,8 +7,8 @@
 It provides:
 
 - a Shadow DOM-isolated launcher UI
-- a programmatic API for application code to register states
-- a simple activation protocol for launching a registered state
+- a programmatic API for application code to define, register, and fire commands
+- a simple activation protocol for launching a registered application state
 
 The package does **not** create product states itself. Application code owns what each state means and how it is applied.
 
@@ -33,7 +33,7 @@ The initial package should use:
 - `@preact/signals` for UI state
 - CSS modules for styling
 - `vite` for bundling the UI/package
-- `fuzzysort2` for filtering registered states/commands
+- `fuzzysort2` for filtering registered commands
 
 ## MVP Scope
 
@@ -42,13 +42,17 @@ The first version should include only the bare necessities:
 - Shadow DOM isolated mount
 - floating launcher button
 - open/close panel
-- programmatic state registration
-- registered state list grouped by surface
+- programmatic command symbol definition
+- programmatic command firing
+- granular programmatic command registration
+- basic Preact command registration hooks from `state-launcher/preact`
+- registered command list grouped by surface
 - fuzzy filtering with `fuzzysort2`
 - keyboard navigation for the filtered command list
-- state activation
+- command activation
 - unmount API
 - exported constants and TypeScript types
+- `state-launcher/preact` submodule exports
 
 The first version should not include persistence, history, command acknowledgements, complex params, event inspection, mock-server integrations, drag/resize, or framework-specific host integrations.
 
@@ -68,25 +72,43 @@ const launcher = mountStateLauncher({
 launcher.unmount();
 ```
 
-Application code registers states programmatically:
+Application code defines command symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining:
 
 ```ts
-import { registerStates } from "state-launcher";
+// src/debug/commands.ts
+import { defineCommand } from "state-launcher";
 
-registerStates({
+export const billingPaymentFailed = defineCommand("billing.paymentFailed");
+export const inboxManyMessages = defineCommand("inbox.manyMessages");
+```
+
+Application code registers commands one at a time:
+
+```ts
+import { registerCommand } from "state-launcher";
+import { billingPaymentFailed } from "./commands";
+
+const unregister = registerCommand({
   surface: "billing",
-  title: "Billing",
-  states: [
-    {
-      id: "billing.paymentFailed",
-      label: "Payment failed",
-      description: "Customer has a failed payment method.",
-      launch() {
-        // Host application code owns the behavior.
-      },
-    },
-  ],
+  surfaceTitle: "Billing",
+  command: billingPaymentFailed,
+  label: "Payment failed",
+  description: "Customer has a failed payment method.",
+  launch() {
+    // Host application code owns the behavior.
+  },
 });
+
+unregister();
+```
+
+Commands can also be fired programmatically without using the visual panel:
+
+```ts
+import { fireCommand } from "state-launcher";
+import { billingPaymentFailed } from "./commands";
+
+await fireCommand(billingPaymentFailed);
 ```
 
 Suggested API shape:
@@ -106,51 +128,116 @@ export type MountedStateLauncher = {
   toggle(): void;
 };
 
-export type StateLauncherState = {
-  id: string;
+export type StateLauncherCommand<Id extends string = string> = {
+  id: Id;
+};
+
+export type StateLauncherRegisteredCommand<Id extends string = string> = {
+  surface: string;
+  surfaceTitle?: string;
+  command: StateLauncherCommand<Id>;
   label: string;
   description?: string;
   tags?: string[];
   launch(): void | Promise<void>;
 };
 
-export type StateLauncherSurface = {
-  surface: string;
-  title?: string;
-  states: StateLauncherState[];
-};
+export type UnregisterStateLauncherCommand = () => void;
 
 export function mountStateLauncher(
   options?: MountStateLauncherOptions,
 ): MountedStateLauncher;
 
-export function registerStates(surface: StateLauncherSurface): void;
-export function unregisterStates(surface: string): void;
-export function clearStates(): void;
+export function defineCommand<const Id extends string>(
+  id: Id,
+): StateLauncherCommand<Id>;
+
+export function fireCommand(command: StateLauncherCommand | string): Promise<void>;
+
+export function registerCommand(
+  command: StateLauncherRegisteredCommand,
+): UnregisterStateLauncherCommand;
+
+export function unregisterCommand(command: StateLauncherCommand | string): void;
+export function clearCommands(): void;
 ```
 
-Repeated registration for the same surface should replace that surface's state list.
+Registering a command with an existing command id should replace the previous registration for that id. `registerCommand` returns an unregister function for lifecycle cleanup.
+
+`fireCommand` should find the registered command for the given command symbol or id and run its `launch` callback. Missing commands and launch errors should reject the returned promise and be reported in the UI when fired from the panel.
+
+Command symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
+
+```ts
+import { fireCommand, registerCommand } from "state-launcher";
+import { billingPaymentFailed, inboxManyMessages } from "./commands";
+
+registerCommand({
+  surface: "billing",
+  command: billingPaymentFailed,
+  label: "Payment failed",
+  async launch() {
+    await setupBillingFailure();
+    await fireCommand(inboxManyMessages);
+  },
+});
+```
+
+## Preact Submodule
+
+`state-launcher/preact` should provide basic hooks for Preact applications that want command registration to follow component lifecycle.
+
+```ts
+import { useRegisterCommand } from "state-launcher/preact";
+import { billingPaymentFailed } from "./commands";
+
+export function BillingDebugCommands() {
+  useRegisterCommand({
+    surface: "billing",
+    surfaceTitle: "Billing",
+    command: billingPaymentFailed,
+    label: "Payment failed",
+    launch() {
+      // Host application behavior.
+    },
+  });
+
+  return null;
+}
+```
+
+Suggested submodule API:
+
+```ts
+export function useRegisterCommand(
+  command: StateLauncherRegisteredCommand,
+): void;
+```
+
+The hook should register on mount/update and unregister the same command on unmount. It should not mount the launcher UI automatically.
 
 ## Runtime Model
 
-`state-launcher` keeps a simple in-memory registry of surfaces and states.
+`state-launcher` keeps a simple in-memory registry of commands.
 
 ```ts
 type LauncherRegistry = {
-  surfaces: Map<string, StateLauncherSurface>;
+  commands: Map<string, StateLauncherRegisteredCommand>;
 };
 ```
 
-When a state is launched, the package calls that state's `launch` function. Errors should be caught and shown in the UI without breaking the launcher.
+Surfaces are derived from registered commands when rendering the panel.
 
-State registrations are intentionally ephemeral and are not persisted by default.
+When a command is launched from the panel or through `fireCommand`, the package calls that command's `launch` function. Errors should be caught and shown in the UI without breaking the launcher.
+
+Command registrations are intentionally ephemeral and are not persisted by default.
 
 ## User Experience
 
 The MVP UI should be minimal:
 
 ```txt
-[States]
+[Commands]
 
 Billing
   Payment failed
@@ -164,15 +251,15 @@ Inbox
 Baseline behavior:
 
 - launcher starts closed unless `initiallyOpen` is true
-- open panel lists registered states
+- open panel lists registered commands
 - when the panel opens, the filter input receives focus
-- filtering uses `fuzzysort2` across state id, label, description, surface title, and tags
+- filtering uses `fuzzysort2` across command id, label, description, surface title, and tags
 - Arrow Up and Arrow Down change the selected command in the filtered list
 - typing in the filter resets selection to the first matching command
 - Enter fires the selected command
-- clicking a state also runs its `launch` callback
-- empty registry shows: "No states registered."
-- surface re-registration updates the visible list
+- clicking a command also runs its `launch` callback
+- empty registry shows: "No commands registered."
+- command re-registration updates the visible list
 
 ## Isolation Strategy
 
@@ -190,12 +277,12 @@ Isolation requirements:
 Baseline requirements:
 
 - launcher button has an accessible label
-- states are buttons
+- commands are buttons
 - filter input is focused when the panel opens
 - Arrow Up and Arrow Down move command selection
 - Enter launches the selected command
 - Escape closes the panel
-- keyboard users can open, close, filter, select, and launch states
+- keyboard users can open, close, filter, select, and launch commands
 - focus returns to the launcher button when the panel closes
 
 ## Recommended Package Structure
@@ -206,6 +293,7 @@ src/
   mountStateLauncher.tsx
   registry.ts
   types.ts
+  preact.ts
   ui/
     StateLauncher.tsx
     StateList.tsx
@@ -216,15 +304,18 @@ src/
 ## Acceptance Criteria
 
 - `mountStateLauncher` mounts an isolated launcher into `document.body` by default.
-- `registerStates` registers a surface of launchable states.
-- Re-registering a surface replaces its states.
-- The panel displays registered states.
+- `defineCommand` creates typed command symbols for stable command ids.
+- `registerCommand` registers one launchable command.
+- Registering an existing command id replaces that command.
+- `fireCommand` launches a registered command programmatically.
+- `state-launcher/preact` exports a basic `useRegisterCommand` hook.
+- The panel displays registered commands.
 - The filter input is focused when the panel opens.
 - Filtering uses `fuzzysort2`.
 - Arrow keys change the selected command.
 - Typing in the filter resets command selection.
-- Enter calls the selected state's `launch` function.
-- Clicking a state calls its `launch` function.
+- Enter calls the selected command's `launch` function.
+- Clicking a command calls its `launch` function.
 - Launch errors are caught and displayed or logged.
 - `unmount` removes the launcher cleanly.
 - The bundled UI uses `isolet-js`, `preact`, `@preact/signals`, CSS modules, `fuzzysort2`, and Vite.
