@@ -1,6 +1,11 @@
+import { useEffect } from 'preact/hooks'
+
 import type { StateLauncherCommand } from './index'
+import { setCommandLaunchHandler } from './registry'
 
 export function useLaunchableState(
-  _command: StateLauncherCommand,
-  _handler: () => void | Promise<void>,
-): void {}
+  command: StateLauncherCommand,
+  handler: () => void | Promise<void>,
+): void {
+  useEffect(() => setCommandLaunchHandler(command, handler), [command, handler])
+}
