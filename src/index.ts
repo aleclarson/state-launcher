@@ -1,3 +1,10 @@
+import {
+  clearCommandRegistry,
+  defineCommand,
+  launchRegisteredCommand,
+  unregisterRegisteredCommand,
+} from './registry'
+
 export type MountStateLauncherOptions = {
   target?: HTMLElement
   initiallyOpen?: boolean
@@ -30,20 +37,19 @@ export function mountStateLauncher(_options: MountStateLauncherOptions = {}): Mo
 
 export function defineLaunchableState<const Id extends string>(
   id: Id,
-  _options: LaunchableStateOptions = {},
+  options?: LaunchableStateOptions,
 ): StateLauncherCommand<Id> {
-  return {
-    id,
-    async launch() {
-      throw new Error('defineLaunchableState launch handlers are not implemented yet.')
-    },
-  }
+  return defineCommand(id, options)
 }
 
-export async function launchCommand(_command: StateLauncherCommand | string): Promise<void> {
-  throw new Error('launchCommand is not implemented yet.')
+export async function launchCommand(command: StateLauncherCommand | string): Promise<void> {
+  await launchRegisteredCommand(command)
 }
 
-export function unregisterCommand(_command: StateLauncherCommand | string): void {}
+export function unregisterCommand(command: StateLauncherCommand | string): void {
+  unregisterRegisteredCommand(command)
+}
 
-export function clearCommands(): void {}
+export function clearCommands(): void {
+  clearCommandRegistry()
+}
