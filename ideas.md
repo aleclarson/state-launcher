@@ -21,10 +21,6 @@ Track pending/success/error status for async launches and display recent results
 
 Show recently launched states, including payloads and status.
 
-## Search and Filtering
-
-Search across state id, label, description, surface title, and tags.
-
 ## Parameters
 
 Allow states to declare simple parameters before launch.

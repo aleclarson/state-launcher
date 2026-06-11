@@ -33,6 +33,7 @@ The initial package should use:
 - `@preact/signals` for UI state
 - CSS modules for styling
 - `vite` for bundling the UI/package
+- `fuzzysort2` for filtering registered states/commands
 
 ## MVP Scope
 
@@ -43,6 +44,8 @@ The first version should include only the bare necessities:
 - open/close panel
 - programmatic state registration
 - registered state list grouped by surface
+- fuzzy filtering with `fuzzysort2`
+- keyboard navigation for the filtered command list
 - state activation
 - unmount API
 - exported constants and TypeScript types
@@ -162,7 +165,12 @@ Baseline behavior:
 
 - launcher starts closed unless `initiallyOpen` is true
 - open panel lists registered states
-- selecting a state runs its `launch` callback
+- when the panel opens, the filter input receives focus
+- filtering uses `fuzzysort2` across state id, label, description, surface title, and tags
+- Arrow Up and Arrow Down change the selected command in the filtered list
+- typing in the filter resets selection to the first matching command
+- Enter fires the selected command
+- clicking a state also runs its `launch` callback
 - empty registry shows: "No states registered."
 - surface re-registration updates the visible list
 
@@ -183,8 +191,11 @@ Baseline requirements:
 
 - launcher button has an accessible label
 - states are buttons
+- filter input is focused when the panel opens
+- Arrow Up and Arrow Down move command selection
+- Enter launches the selected command
 - Escape closes the panel
-- keyboard users can open, close, and launch states
+- keyboard users can open, close, filter, select, and launch states
 - focus returns to the launcher button when the panel closes
 
 ## Recommended Package Structure
@@ -208,7 +219,12 @@ src/
 - `registerStates` registers a surface of launchable states.
 - Re-registering a surface replaces its states.
 - The panel displays registered states.
+- The filter input is focused when the panel opens.
+- Filtering uses `fuzzysort2`.
+- Arrow keys change the selected command.
+- Typing in the filter resets command selection.
+- Enter calls the selected state's `launch` function.
 - Clicking a state calls its `launch` function.
 - Launch errors are caught and displayed or logged.
 - `unmount` removes the launcher cleanly.
-- The bundled UI uses `isolet-js`, `preact`, `@preact/signals`, CSS modules, and Vite.
+- The bundled UI uses `isolet-js`, `preact`, `@preact/signals`, CSS modules, `fuzzysort2`, and Vite.
