@@ -99,7 +99,12 @@ export function unregisterRegisteredCommand(commandOrId: StateLauncherCommand | 
 }
 
 export function clearCommandRegistry(): void {
-  registry = createRegistry()
+  const { listeners } = registry
+  registry = {
+    ...createRegistry(),
+    listeners,
+  }
+  notifyCommandListeners()
 }
 
 export function getCommandRecord(command: StateLauncherCommand): CommandRecord | undefined {
