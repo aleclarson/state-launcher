@@ -43,6 +43,8 @@ export function mountLauncher(options: MountStateLauncherOptions = {}): MountedS
       }
 
       isOpen.value = nextOpen
+      // Controller methods run outside Preact's event path, so the isolet needs
+      // an explicit update to keep the Shadow DOM render in sync.
       launcherIsolet.update(props)
     },
     position: options.position ?? defaultPosition,

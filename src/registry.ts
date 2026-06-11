@@ -100,6 +100,8 @@ export function unregisterRegisteredCommand(commandOrId: StateLauncherCommand | 
 
 export function clearCommandRegistry(): void {
   const { listeners } = registry
+  // Mounted launchers stay subscribed across clearCommands() so their panels can
+  // render the emptied registry instead of holding stale command snapshots.
   registry = {
     ...createRegistry(),
     listeners,
@@ -154,6 +156,7 @@ export function setCommandLaunchHandler(
   notifyCommandListeners()
 
   return () => {
+    // Hook cleanups must not remove a handler that was replaced after mount.
     if (record.launch === launch) {
       delete record.launch
       notifyCommandListeners()
