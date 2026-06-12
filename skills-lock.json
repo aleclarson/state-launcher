@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "library-docs": {
+      "source": "/Users/alec/dev/skills",
+      "sourceType": "local",
+      "computedHash": "62182a6db6a7c69c031c0b963af9cf2a18b3706833b5bebc2f76ffb480d71b8c"
+    }
+  }
+}
