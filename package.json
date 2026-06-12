@@ -37,8 +37,7 @@
   "dependencies": {
     "@preact/signals": "^2.9.1",
     "fuzzysort2": "^0.1.1",
-    "isolet-js": "^0.0.7",
-    "preact": "^10.29.2"
+    "isolet-js": "^0.0.7"
   },
   "devDependencies": {
     "@tsdown/css": "^0.22.2",
@@ -46,12 +45,16 @@
     "happy-dom": "^20.10.1",
     "oxfmt": "^0.53.0",
     "oxlint": "^1.68.0",
+    "preact": "^10.29.2",
     "radashi": "^12.9.1",
     "tsdown": "^0.22.2",
     "tsnapi": "^0.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.2"
   },
   "packageManager": "pnpm@11.5.1"
 }

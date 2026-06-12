@@ -17,9 +17,6 @@ importers:
       isolet-js:
         specifier: ^0.0.7
         version: 0.0.7(@tsdown/css@0.22.2)(preact@10.29.2)(typescript@6.0.3)
-      preact:
-        specifier: ^10.29.2
-        version: 10.29.2
     devDependencies:
       '@tsdown/css':
         specifier: ^0.22.2
@@ -36,6 +33,9 @@ importers:
       oxlint:
         specifier: ^1.68.0
         version: 1.68.0
+      preact:
+        specifier: ^10.29.2
+        version: 10.29.2
       radashi:
         specifier: ^12.9.1
         version: 12.9.1
