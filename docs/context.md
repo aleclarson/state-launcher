@@ -56,7 +56,7 @@ Mounted launchers subscribe to registry changes. Clearing commands while a launc
 
 ## Launch handlers
 
-A command can exist before it has a handler. Launching a command without a handler rejects with an error. This lets shared modules export command handles without importing app setup code.
+A command can exist before it has a handler. In the launcher UI, commands without handlers are shown as disabled and ranked below commands that can be launched. Programmatic attempts to launch a command without a handler reject with an error. This lets shared modules export command handles without importing app setup code.
 
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 
@@ -89,7 +89,7 @@ The hook attaches the handler on mount/update and removes that exact handler dur
 - `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions
 - custom panel title
 - initially open or closed state
-- fuzzy filtering across id, label, description, and tags
+- fuzzy filtering across id, label, description, and tags, with launchable commands ranked first
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches
 

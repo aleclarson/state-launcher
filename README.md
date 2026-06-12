@@ -25,7 +25,7 @@ Do not use it if you need:
 
 `state-launcher` is browser-only, ESM-only, and currently depends on Preact, `@preact/signals`, `isolet-js`, and `fuzzysort2`.
 
-The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
+The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, disabled display for commands without handlers, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
 
 ## Install
 

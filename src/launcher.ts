@@ -82,8 +82,14 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
   const [launchError, setLaunchError] = useState<string>()
   const filteredCommands = useMemo(() => filterCommands(commands, query), [commands, query])
   const groupedCommands = useMemo(() => groupCommands(filteredCommands), [filteredCommands])
-  const selectedIndex =
-    filteredCommands.length === 0 ? -1 : Math.min(activeIndex, filteredCommands.length - 1)
+  const enabledCommands = useMemo(
+    () => filteredCommands.filter((command) => command.hasLaunchHandler),
+    [filteredCommands],
+  )
+  const selectedCommand =
+    enabledCommands.length === 0
+      ? undefined
+      : enabledCommands[Math.min(activeIndex, enabledCommands.length - 1)]
 
   useEffect(
     () =>
@@ -113,19 +119,19 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
   function onSearchKeyDown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      setActiveIndex((index) => wrapIndex(index + 1, filteredCommands.length))
+      setActiveIndex((index) => wrapIndex(index + 1, enabledCommands.length))
       return
     }
 
     if (event.key === 'ArrowUp') {
       event.preventDefault()
-      setActiveIndex((index) => wrapIndex(index - 1, filteredCommands.length))
+      setActiveIndex((index) => wrapIndex(index - 1, enabledCommands.length))
       return
     }
 
-    if (event.key === 'Enter' && selectedIndex >= 0) {
+    if (event.key === 'Enter' && selectedCommand) {
       event.preventDefault()
-      void activateCommand(filteredCommands[selectedIndex]!)
+      void activateCommand(selectedCommand)
     }
   }
 
@@ -198,16 +204,19 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
                       'div',
                       { class: 'stateLauncher__items' },
                       group.commands.map((command) => {
-                        const index = filteredCommands.indexOf(command)
-                        const isActive = index === selectedIndex
+                        const isActive = command === selectedCommand
 
                         return h(
                           'button',
                           {
+                            'aria-disabled': String(!command.hasLaunchHandler),
                             'aria-selected': String(isActive),
-                            class: isActive
-                              ? 'stateLauncher__command stateLauncher__command--active'
-                              : 'stateLauncher__command',
+                            class: command.hasLaunchHandler
+                              ? isActive
+                                ? 'stateLauncher__command stateLauncher__command--active'
+                                : 'stateLauncher__command'
+                              : 'stateLauncher__command stateLauncher__command--disabled',
+                            disabled: !command.hasLaunchHandler,
                             key: command.id,
                             onClick() {
                               void activateCommand(command)
@@ -243,15 +252,30 @@ function filterCommands(commands: CommandRecordSnapshot[], query: string): Comma
   const trimmedQuery = query.trim()
 
   if (!trimmedQuery) {
-    return commands
+    return rankCommands(commands, true)
   }
 
-  return searchFields(trimmedQuery, commands, [
-    { key: 'id', extract: (command) => command.id },
-    { key: 'label', extract: (command) => command.label },
-    { key: 'description', extract: (command) => command.description },
-    { key: 'tags', extract: (command) => command.tags.join(' ') },
-  ]).items.map((item) => item.value)
+  return rankCommands(
+    searchFields(trimmedQuery, commands, [
+      { key: 'id', extract: (command) => command.id },
+      { key: 'label', extract: (command) => command.label },
+      { key: 'description', extract: (command) => command.description },
+      { key: 'tags', extract: (command) => command.tags.join(' ') },
+    ]).items.map((item) => item.value),
+  )
+}
+
+function rankCommands(
+  commands: CommandRecordSnapshot[],
+  sortWithinLaunchability = false,
+): CommandRecordSnapshot[] {
+  return [...commands].sort((left, right) => {
+    if (left.hasLaunchHandler !== right.hasLaunchHandler) {
+      return left.hasLaunchHandler ? -1 : 1
+    }
+
+    return sortWithinLaunchability ? left.id.localeCompare(right.id) : 0
+  })
 }
 
 function groupCommands(commands: CommandRecordSnapshot[]) {

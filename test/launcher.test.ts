@@ -139,7 +139,7 @@ test('activates the selected command with keyboard navigation', async () => {
   expect(secondLaunch).toHaveBeenCalledOnce()
 })
 
-test('shows launch errors without crashing the panel', async () => {
+test('disables commands without launch handlers', async () => {
   defineLaunchableState('billing.paymentFailed', {
     label: 'Payment failed',
   })
@@ -148,13 +148,33 @@ test('shows launch errors without crashing the panel', async () => {
   const shadowRoot = getLauncherShadowRoot()
   const command = shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')
 
+  expect(command?.disabled).toBe(true)
+  expect(command?.getAttribute('aria-disabled')).toBe('true')
+
   command!.click()
   await nextRender()
 
-  expect(shadowRoot?.querySelector('[role="alert"]')?.textContent).toContain(
-    'does not have a launch handler',
-  )
-  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+  expect(shadowRoot?.querySelector('[role="alert"]')).toBeNull()
+})
+
+test('ranks commands with handlers before disabled commands', () => {
+  defineLaunchableState('aaa.disabled', {
+    label: 'AAA disabled',
+  })
+  defineLaunchableState('zzz.enabled', {
+    label: 'ZZZ enabled',
+    launch: vi.fn(),
+  })
+
+  mountStateLauncher({ initiallyOpen: true })
+  const commands = [
+    ...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+  ]
+
+  expect(commands.map((command) => command.textContent)).toEqual([
+    expect.stringContaining('ZZZ enabled'),
+    expect.stringContaining('AAA disabled'),
+  ])
 })
 
 function getLauncherShadowRoot() {

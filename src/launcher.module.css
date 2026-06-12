@@ -171,6 +171,16 @@
   background: #eef6fb;
 }
 
+.stateLauncher__command--disabled {
+  color: #7a8799;
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.stateLauncher__command--disabled:hover {
+  background: transparent;
+}
+
 .stateLauncher__command:focus-visible {
   outline: 2px solid #67b7dc;
   outline-offset: -2px;
