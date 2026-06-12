@@ -1,6 +1,6 @@
 # state-launcher Ideas
 
-Ideas in this file are intentionally out of MVP scope. Move them into `concept.md` only when they become necessary.
+Ideas in this file are intentionally out of MVP scope. Move them into product documentation only when they become necessary.
 
 ## Event Protocol
 
