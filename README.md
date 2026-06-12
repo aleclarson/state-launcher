@@ -1,121 +1,99 @@
 # state-launcher
 
-Dev/test-only launcher UI for registering and launching named application states from an isolated in-page panel.
+`state-launcher` is a dev/test-only command launcher for putting an application into named states from an isolated in-page panel.
+
+Use it when you want QA, designers, or developers to jump directly to states such as `billing.paymentFailed` or `inbox.manyMessages` without wiring those states into production navigation.
+
+## Fit
+
+Use this package if you need:
+
+- a small browser UI for launching registered app states during development or tests
+- command definitions that can live separately from the code that knows how to enter a state
+- direct programmatic launching for tests or setup scripts
+- Shadow DOM style isolation so the launcher does not inherit app CSS
+- a Preact lifecycle hook for attaching launch handlers while components are mounted
+
+Do not use it if you need:
+
+- production feature flags, routing, or end-user navigation
+- persisted history, acknowledgements, parameters, or event inspection
+- mock-server orchestration or data seeding built into the package
+- framework integrations beyond the exported Preact hook
+
+## Requirements and tradeoff
+
+`state-launcher` is browser-only, ESM-only, and currently depends on Preact, `@preact/signals`, `isolet-js`, and `fuzzysort2`.
+
+The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
+
+## Install
 
 ```sh
 pnpm add state-launcher
 ```
 
-## Usage
+## Minimal example
 
-Mount the launcher once from dev-only application setup:
+This example proves the core workflow: define a stable command id once, attach behavior from app code, mount the isolated panel, and still launch the same command without the panel.
 
 ```ts
-import { mountStateLauncher } from 'state-launcher'
+import { defineLaunchableState, mountStateLauncher } from 'state-launcher'
+
+export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
+  label: 'Payment failed',
+  description: 'Customer has a failed payment method.',
+  tags: ['billing', 'card'],
+})
+
+// Later, in code that knows how to create this state:
+defineLaunchableState(paymentFailed.id, {
+  label: 'Payment failed',
+  async launch() {
+    await signInAsTestUser()
+    await createFailedPaymentMethod()
+    await navigateToBilling()
+  },
+})
 
 const launcher = mountStateLauncher({
   target: document.body,
   initiallyOpen: false,
   position: 'bottom-right',
-  title: 'Commands',
+  title: 'App states',
 })
 
-launcher.open()
-launcher.close()
+await paymentFailed.launch()
 launcher.toggle()
-launcher.unmount()
 ```
 
-Define shared command symbols in a dedicated module:
+## Preact lifecycle hook
 
-```ts
-import { defineLaunchableState } from 'state-launcher'
+Use `state-launcher/preact` when a component owns the handler lifetime. Metadata still belongs on `defineLaunchableState`; the hook only attaches and detaches the launch handler.
 
-export const billingPaymentFailed = defineLaunchableState('billing.paymentFailed', {
-  label: 'Payment failed',
-  description: 'Customer has a failed payment method.',
-  tags: ['billing', 'card'],
-})
-
-export const inboxManyMessages = defineLaunchableState('inbox.manyMessages', {
-  label: 'Many messages',
-})
-```
-
-Attach behavior where the host application knows how to enter that state:
-
-```ts
-import { defineLaunchableState } from 'state-launcher'
-import { billingPaymentFailed, inboxManyMessages } from './commands'
-
-defineLaunchableState(billingPaymentFailed.id, {
-  label: 'Payment failed',
-  description: 'Customer has a failed payment method.',
-  tags: ['billing', 'card'],
-  async launch() {
-    await setupBillingFailure()
-    await inboxManyMessages.launch()
-  },
-})
-```
-
-Commands can also launch without the visual panel:
-
-```ts
-await billingPaymentFailed.launch()
-```
-
-## Preact
-
-`state-launcher/preact` provides a lifecycle hook for Preact applications. It attaches only the launch handler while the component is mounted. Labels, descriptions, and tags still belong to `defineLaunchableState`.
-
-```ts
+```tsx
 import { useLaunchableState } from 'state-launcher/preact'
-import { billingPaymentFailed } from './commands'
+import { paymentFailed } from './launchable-states'
 
-export function BillingDebugCommands() {
-  useLaunchableState(billingPaymentFailed, async () => {
-    await setupBillingFailure()
+export function BillingDebugState() {
+  useLaunchableState(paymentFailed, async () => {
+    await signInAsTestUser()
+    await createFailedPaymentMethod()
+    await navigateToBilling()
   })
 
   return null
 }
 ```
 
-## Demo
+## Documentation map
 
-Run the local demo:
+- [`docs/context.md`](docs/context.md): concepts, lifecycle, command identity, and API-selection guidance.
+- [`examples/main.ts`](examples/main.ts): runnable demo registration, filtering, command chaining, and error display.
+- Type declarations from the package are the exact API reference.
+
+Run the local demo with:
 
 ```sh
 pnpm demo
 ```
-
-Open the URL printed by Vite. The demo registers billing and inbox commands, supports filtering, launches a successful command, and includes one command that reports an error in the panel.
-
-## MVP Scope
-
-The launcher owns UI. The host application owns behavior. This package does not create product states itself.
-
-Included in the MVP:
-
-- Shadow DOM-isolated launcher UI
-- floating launcher button and panel
-- programmatic command definition and launching
-- grouped command list based on id prefix
-- fuzzy filtering with `fuzzysort2`
-- keyboard navigation and activation
-- launch error display in the panel
-- unmount API
-- TypeScript types
-- `state-launcher/preact` hook
-
-Intentionally out of scope for the first version:
-
-- persistence
-- history
-- command acknowledgements
-- complex params
-- event inspection
-- mock-server integrations
-- drag or resize
-- framework-specific host integrations beyond the basic Preact hook
