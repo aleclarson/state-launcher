@@ -1,16 +1,15 @@
+import type { Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
-import { h } from 'preact'
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
+import type { MountStateLauncherOptions } from './index'
+import styles from './launcher.module.css'
 import {
   launchRegisteredCommand,
   listCommandRecords,
   subscribeCommandRecords,
   type CommandRecordSnapshot,
 } from './registry'
-import styles from './launcher.module.css'
-import type { Signal } from '@preact/signals'
-import type { MountStateLauncherOptions } from './index'
 
 export type LauncherProps = {
   isOpen: Signal<boolean>
@@ -79,108 +78,87 @@ export function LauncherShell({ isOpen, position, setOpen, title }: LauncherProp
     }
   }
 
-  return h(
-    'div',
-    {
-      class: `${styles.stateLauncher} ${styles[position]}`,
-      'data-position': position,
-      'data-state-launcher': '',
-    },
-    h(
-      'button',
-      {
-        'aria-expanded': String(isOpen.value),
-        'aria-label': isOpen.value ? 'Close state launcher' : 'Open state launcher',
-        class: styles.button,
-        onClick() {
-          setOpen(!isOpen.value)
-        },
-        type: 'button',
-      },
-      'Commands',
-    ),
-    isOpen.value
-      ? h(
-          'section',
-          {
-            'aria-label': title,
-            class: styles.panel,
-            role: 'dialog',
-          },
-          h('header', { class: styles.header }, h('h2', {}, title)),
-          h('input', {
-            'aria-label': 'Filter commands',
-            class: styles.search,
-            onInput: onSearchInput,
-            onKeyDown: onSearchKeyDown,
-            placeholder: 'Filter commands',
-            type: 'search',
-            value: query,
-          }),
-          launchError
-            ? h(
-                'div',
-                {
-                  class: styles.error,
-                  role: 'alert',
-                },
-                launchError,
-              )
-            : null,
-          filteredCommands.length === 0
-            ? h(
-                'div',
-                { class: styles.empty },
-                commands.length === 0 ? 'No commands registered.' : 'No commands match.',
-              )
-            : h(
-                'div',
-                { class: styles.groups, role: 'listbox' },
-                groupedCommands.map((group) =>
-                  h(
-                    'section',
-                    {
-                      class: styles.group,
-                      key: group.name,
-                    },
-                    h('h3', { class: styles.groupTitle }, group.name),
-                    h(
-                      'div',
-                      { class: styles.items },
-                      group.commands.map((command) => {
-                        const isActive = command === selectedCommand
+  return (
+    <div
+      class={`${styles.stateLauncher} ${styles[position]}`}
+      data-position={position}
+      data-state-launcher=""
+    >
+      <button
+        aria-expanded={isOpen.value}
+        aria-label={isOpen.value ? 'Close state launcher' : 'Open state launcher'}
+        class={styles.button}
+        onClick={() => setOpen(!isOpen.value)}
+        type="button"
+      >
+        Commands
+      </button>
+      {isOpen.value ? (
+        <section aria-label={title} class={styles.panel} role="dialog">
+          <header class={styles.header}>
+            <h2>{title}</h2>
+          </header>
+          <input
+            aria-label="Filter commands"
+            class={styles.search}
+            onInput={onSearchInput}
+            onKeyDown={onSearchKeyDown}
+            placeholder="Filter commands"
+            type="search"
+            value={query}
+          />
+          {launchError ? (
+            <div class={styles.error} role="alert">
+              {launchError}
+            </div>
+          ) : null}
+          {filteredCommands.length === 0 ? (
+            <div class={styles.empty}>
+              {commands.length === 0 ? 'No commands registered.' : 'No commands match.'}
+            </div>
+          ) : (
+            <div class={styles.groups} role="listbox">
+              {groupedCommands.map((group) => (
+                <section class={styles.group} key={group.name}>
+                  <h3 class={styles.groupTitle}>{group.name}</h3>
+                  <div class={styles.items}>
+                    {group.commands.map((command) => {
+                      const isActive = command === selectedCommand
+                      const className = command.hasLaunchHandler
+                        ? isActive
+                          ? `${styles.command} ${styles.active}`
+                          : styles.command
+                        : `${styles.command} ${styles.disabled}`
 
-                        return h(
-                          'button',
-                          {
-                            'aria-disabled': String(!command.hasLaunchHandler),
-                            'aria-selected': String(isActive),
-                            class: command.hasLaunchHandler
-                              ? isActive
-                                ? `${styles.command} ${styles.active}`
-                                : styles.command
-                              : `${styles.command} ${styles.disabled}`,
-                            disabled: !command.hasLaunchHandler,
-                            key: command.id,
-                            onClick() {
-                              void activateCommand(command)
-                            },
-                            role: 'option',
-                            type: 'button',
-                          },
-                          h('span', { class: styles.commandLabel }, command.label ?? command.id),
-                          command.description
-                            ? h('span', { class: styles.commandDescription }, command.description)
-                            : null,
-                          h('span', { class: styles.commandId }, command.id),
-                        )
-                      }),
-                    ),
-                  ),
-                ),
-              ),
-        )
-      : null,
+                      return (
+                        <button
+                          aria-disabled={!command.hasLaunchHandler}
+                          aria-selected={isActive}
+                          class={className}
+                          disabled={!command.hasLaunchHandler}
+                          key={command.id}
+                          onClick={() => {
+                            void activateCommand(command)
+                          }}
+                          role="option"
+                          type="button"
+                        >
+                          <span class={styles.commandLabel}>{command.label ?? command.id}</span>
+                          {command.description ? (
+                            <span class={styles.commandDescription}>{command.description}</span>
+                          ) : null}
+                          <span class={styles.commandId}>{command.id}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+    </div>
   )
 }
 
