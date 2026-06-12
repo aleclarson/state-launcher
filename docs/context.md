@@ -55,6 +55,10 @@ Mounted launchers subscribe to registry changes. Clearing commands while a launc
 
 A command can exist before it has a handler. In the launcher UI, registered commands without handlers are shown as disabled and ranked below commands that can be launched. Programmatic attempts to launch a command without a handler reject with an error. This lets shared modules export command handles without importing app setup code.
 
+A command can have multiple launch handlers. `defineLaunchableState` accepts one initial handler for convenience, and additional handlers can be attached from anywhere, including component lifecycles. Launch order is intentionally not part of the API contract.
+
+When a command is launched, it becomes the active state. If a handler is attached later for the active command, that handler fires immediately. This lets conditional rendering continue a launchable state as newly mounted code becomes available.
+
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 
 ## API selection
@@ -78,7 +82,7 @@ Use `state-launcher/preact` only when a Preact component should own a handler li
 import { useLaunchableState } from 'state-launcher/preact'
 ```
 
-The hook attaches the handler on mount/update, registers the command for launcher discovery, and removes that exact handler during cleanup. Metadata still comes from the command handle.
+The hook attaches one handler on mount/update, registers the command for launcher discovery, and removes that exact handler during cleanup. Metadata still comes from the command handle.
 
 ## Launcher UI behavior
 

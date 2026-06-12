@@ -51,8 +51,8 @@ test('registers commands and merges duplicate ids', async () => {
   expect(getCommandRecord(first)).toMatchObject({
     id: 'billing.paymentFailed',
     label: 'Payment failed again',
-    launch,
   })
+  expect(getCommandRecord(first)?.launchHandlers).toContain(launch)
   expect(getCommandRecord(second)).toBe(getCommandRecord(first))
   expect(listCommandRecords()).toHaveLength(1)
 
@@ -70,6 +70,25 @@ test('launches commands by object or id', async () => {
   await launchCommand('inbox.manyMessages')
 
   expect(launch).toHaveBeenCalledTimes(3)
+})
+
+test('launches every handler for a command', async () => {
+  const definedLaunch = vi.fn()
+  const attachedLaunch = vi.fn()
+  const duplicateLaunch = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', { launch: definedLaunch })
+  const duplicate = defineLaunchableState('billing.paymentFailed', { launch: duplicateLaunch })
+
+  registerLaunchableState([command, duplicate])
+  const detach = setCommandLaunchHandler(command, attachedLaunch)
+
+  await command.launch()
+  detach()
+  await command.launch()
+
+  expect(definedLaunch).toHaveBeenCalledTimes(2)
+  expect(duplicateLaunch).toHaveBeenCalledTimes(2)
+  expect(attachedLaunch).toHaveBeenCalledOnce()
 })
 
 test('rejects missing handlers, unknown ids, and invalid command objects', async () => {
@@ -148,4 +167,29 @@ test('attaches and detaches handlers for lifecycle integrations', async () => {
     label: 'Payment failed',
   })
   await expect(command.launch()).rejects.toThrow('does not have a launch handler')
+})
+
+test('fires newly attached handlers for the active command', async () => {
+  const command = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  const continuation = vi.fn()
+  registerLaunchableState([command])
+
+  await command.launch()
+  setCommandLaunchHandler(command, continuation)
+
+  expect(continuation).toHaveBeenCalledOnce()
+})
+
+test('does not double-fire handlers attached during an active launch', async () => {
+  const continuation = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch() {
+      setCommandLaunchHandler(command, continuation)
+    },
+  })
+  registerLaunchableState([command])
+
+  await command.launch()
+
+  expect(continuation).toHaveBeenCalledOnce()
 })

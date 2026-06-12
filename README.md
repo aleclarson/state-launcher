@@ -73,7 +73,9 @@ bundles to drop launchable-state definitions.
 
 ## Preact lifecycle hook
 
-Use `state-launcher/preact` when a component owns the handler lifetime. Metadata still belongs on `defineLaunchableState`; the hook only attaches and detaches the launch handler.
+Use `state-launcher/preact` when a component owns one launch handler's lifetime.
+Metadata still belongs on `defineLaunchableState`; the hook only attaches and
+detaches its handler.
 
 ```tsx
 import { useLaunchableState } from 'state-launcher/preact'
@@ -89,6 +91,11 @@ export function BillingDebugState() {
   return null
 }
 ```
+
+A command may have multiple launch handlers. Launch order is intentionally not
+part of the API contract. When a command is launched, it becomes the active
+state; handlers attached later for the active command fire immediately so
+conditional UI can continue entering that state as it mounts.
 
 ## Documentation map
 

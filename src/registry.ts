@@ -17,7 +17,7 @@ export type CommandRecord = {
   label?: string
   description?: string
   tags?: string[]
-  launch?: () => void | Promise<void>
+  launchHandlers: Set<() => void | Promise<void>>
 }
 
 export type CommandRecordSnapshot = Readonly<{
@@ -37,6 +37,7 @@ type CommandRegistry = {
 
 let registry: CommandRegistry = createRegistry()
 let unregisteredCommands = new WeakSet<StateLauncherCommand>()
+let activeCommandId: string | undefined
 
 /**
  * Define a launchable state command.
@@ -84,16 +85,22 @@ export function registerLaunchableState(commands: readonly StateLauncherCommand[
 /** Launch a registered command by handle or id. */
 export async function launchCommand(commandOrId: StateLauncherCommand | string): Promise<void> {
   const record = resolveCommandRecord(commandOrId, false)
-  const launch =
-    record?.launch ??
-    (typeof commandOrId === 'string' ? undefined : getDefinedCommandLaunchHandler(commandOrId))
+  const launchHandlers = record
+    ? [...record.launchHandlers]
+    : typeof commandOrId === 'string'
+      ? []
+      : [getDefinedCommandLaunchHandler(commandOrId)].filter(isLaunchHandler)
 
-  if (!launch) {
+  if (launchHandlers.length === 0) {
     const id = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
     throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  await launch()
+  activeCommandId = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
+
+  for (const launch of launchHandlers) {
+    await launch()
+  }
 }
 
 /** Unregister a command by handle or id. Missing string ids are ignored. */
@@ -104,6 +111,7 @@ export function unregisterCommand(commandOrId: StateLauncherCommand | string): v
     if (command) {
       const record = registry.commandRecords.get(command)
       registry.commandsById.delete(commandOrId)
+      clearActiveCommand(commandOrId)
 
       if (record) {
         for (const command of record.commands) {
@@ -125,6 +133,7 @@ export function unregisterCommand(commandOrId: StateLauncherCommand | string): v
   }
 
   registry.commandsById.delete(record.id)
+  clearActiveCommand(record.id)
   for (const command of record.commands) {
     registry.commandRecords.delete(command)
     unregisteredCommands.add(command)
@@ -141,6 +150,7 @@ export function clearCommands(): void {
     ...createRegistry(),
     listeners,
   }
+  activeCommandId = undefined
   notifyCommandListeners()
 }
 
@@ -161,7 +171,7 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
         label: record.label,
         description: record.description,
         tags: record.tags ?? [],
-        hasLaunchHandler: Boolean(record.launch),
+        hasLaunchHandler: record.launchHandlers.size > 0,
       })
     }
   }
@@ -183,13 +193,15 @@ export function setCommandLaunchHandler(
 ): () => void {
   const record = registerCommand(command)
 
-  record.launch = launch
+  record.launchHandlers.add(launch)
   notifyCommandListeners()
 
+  if (record.id === activeCommandId) {
+    void launch()
+  }
+
   return () => {
-    // Hook cleanups must not remove a handler that was replaced after mount.
-    if (record.launch === launch) {
-      delete record.launch
+    if (record.launchHandlers.delete(launch)) {
       notifyCommandListeners()
     }
   }
@@ -225,6 +237,7 @@ function registerCommand(command: StateLauncherCommand): CommandRecord {
     command,
     commands: new Set([command]),
     id: command.id,
+    launchHandlers: new Set(),
   }
   registry.commandsById.set(command.id, command)
   registry.commandRecords.set(command, newRecord)
@@ -276,7 +289,7 @@ function applyCommandMetadata(record: CommandRecord, command: StateLauncherComma
   const launch = getDefinedCommandLaunchHandler(command)
 
   if (launch) {
-    record.launch = launch
+    record.launchHandlers.add(launch)
   }
 }
 
@@ -294,8 +307,20 @@ function isDefinedCommand(command: StateLauncherCommand): boolean {
   return (command as DefinedStateLauncherCommand)[commandKey] === true
 }
 
+function isLaunchHandler(
+  launch: (() => void | Promise<void>) | undefined,
+): launch is () => void | Promise<void> {
+  return Boolean(launch)
+}
+
 function notifyCommandListeners(): void {
   for (const listener of registry.listeners) {
     listener()
+  }
+}
+
+function clearActiveCommand(id: string): void {
+  if (activeCommandId === id) {
+    activeCommandId = undefined
   }
 }

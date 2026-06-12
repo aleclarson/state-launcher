@@ -155,7 +155,11 @@ export function clearCommands(): void
 
 Calling `defineLaunchableState` creates a side-effect-free command handle. The handle carries its id, optional metadata, and optional launch handler. Calling `registerLaunchableState` with an array of commands makes those commands discoverable by the launcher UI. Repeated registered ids should merge into one launcher record, with the later registration updating metadata and launch behavior.
 
-Each `StateLauncherCommand` has a `launch()` method that runs its own launch handler or the current handler attached through registration/hooks. `launchCommand` is a convenience wrapper for code that only has a command id or generic command reference. String ids resolve through the launcher registry. Missing handlers and launch errors should reject/throw and be reported in the UI when launched from the panel.
+Each `StateLauncherCommand` has a `launch()` method that runs the command's launch handlers. `launchCommand` is a convenience wrapper for code that only has a command id or generic command reference. String ids resolve through the launcher registry. Missing handlers and launch errors should reject/throw and be reported in the UI when launched from the panel.
+
+A command can have multiple launch handlers. `defineLaunchableState` accepts one initial launch handler for convenience, and lifecycle integrations can attach more. Handler order is not part of the API contract.
+
+The last launched command is remembered as the active state. When code attaches a launch handler to the active command, that handler fires immediately so conditional rendering can continue entering the requested state.
 
 Launchable state symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
 
@@ -198,7 +202,7 @@ export function useLaunchableState(
 ): void
 ```
 
-The hook should attach only the launch handler on mount/update and remove that exact handler on unmount. Attaching the handler registers the command so the launcher can discover mounted command behavior. Label, description, and tags are provided by `defineLaunchableState`, not by the hook. The hook should not mount the launcher UI automatically.
+The hook should attach one launch handler on mount/update and remove that exact handler on unmount. Attaching the handler registers the command so the launcher can discover mounted command behavior. Label, description, and tags are provided by `defineLaunchableState`, not by the hook. The hook should not mount the launcher UI automatically.
 
 ## Runtime Model
 
@@ -211,7 +215,7 @@ type CommandRecord = {
   label?: string
   description?: string
   tags?: string[]
-  launch?: () => void | Promise<void>
+  launchHandlers: Set<() => void | Promise<void>>
 }
 
 type LauncherRegistry = {

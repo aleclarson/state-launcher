@@ -88,6 +88,19 @@ test('does not remove a newer handler on unmount', async () => {
   expect(newerHandler).toHaveBeenCalledOnce()
 })
 
+test('fires mounted handlers immediately for the active command', async () => {
+  const command = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  const continuation = vi.fn()
+  registerLaunchableState([command])
+
+  await command.launch()
+  await act(async () => {
+    render(h(Launchable, { command, handler: continuation }), document.body)
+  })
+
+  expect(continuation).toHaveBeenCalledOnce()
+})
+
 function Launchable({
   command,
   handler,
