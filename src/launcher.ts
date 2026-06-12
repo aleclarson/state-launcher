@@ -138,7 +138,7 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
   return h(
     'div',
     {
-      class: `stateLauncher stateLauncher--${position}`,
+      class: `stateLauncher ${position}`,
       'data-position': position,
       'data-state-launcher': '',
     },
@@ -147,7 +147,7 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
       {
         'aria-expanded': String(isOpen.value),
         'aria-label': isOpen.value ? 'Close state launcher' : 'Open state launcher',
-        class: 'stateLauncher__button',
+        class: 'button',
         onClick() {
           setOpen(!isOpen.value)
         },
@@ -160,13 +160,13 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
           'section',
           {
             'aria-label': title,
-            class: 'stateLauncher__panel',
+            class: 'panel',
             role: 'dialog',
           },
-          h('header', { class: 'stateLauncher__header' }, h('h2', {}, title)),
+          h('header', { class: 'header' }, h('h2', {}, title)),
           h('input', {
             'aria-label': 'Filter commands',
-            class: 'stateLauncher__search',
+            class: 'search',
             onInput: onSearchInput,
             onKeyDown: onSearchKeyDown,
             placeholder: 'Filter commands',
@@ -177,7 +177,7 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
             ? h(
                 'div',
                 {
-                  class: 'stateLauncher__error',
+                  class: 'error',
                   role: 'alert',
                 },
                 launchError,
@@ -186,23 +186,23 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
           filteredCommands.length === 0
             ? h(
                 'div',
-                { class: 'stateLauncher__empty' },
+                { class: 'empty' },
                 commands.length === 0 ? 'No commands registered.' : 'No commands match.',
               )
             : h(
                 'div',
-                { class: 'stateLauncher__groups', role: 'listbox' },
+                { class: 'groups', role: 'listbox' },
                 groupedCommands.map((group) =>
                   h(
                     'section',
                     {
-                      class: 'stateLauncher__group',
+                      class: 'group',
                       key: group.name,
                     },
-                    h('h3', { class: 'stateLauncher__groupTitle' }, group.name),
+                    h('h3', { class: 'groupTitle' }, group.name),
                     h(
                       'div',
-                      { class: 'stateLauncher__items' },
+                      { class: 'items' },
                       group.commands.map((command) => {
                         const isActive = command === selectedCommand
 
@@ -213,9 +213,9 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
                             'aria-selected': String(isActive),
                             class: command.hasLaunchHandler
                               ? isActive
-                                ? 'stateLauncher__command stateLauncher__command--active'
-                                : 'stateLauncher__command'
-                              : 'stateLauncher__command stateLauncher__command--disabled',
+                                ? 'command active'
+                                : 'command'
+                              : 'command disabled',
                             disabled: !command.hasLaunchHandler,
                             key: command.id,
                             onClick() {
@@ -226,17 +226,17 @@ function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
                           },
                           h(
                             'span',
-                            { class: 'stateLauncher__commandLabel' },
+                            { class: 'commandLabel' },
                             command.label ?? command.id,
                           ),
                           command.description
                             ? h(
                                 'span',
-                                { class: 'stateLauncher__commandDescription' },
+                                { class: 'commandDescription' },
                                 command.description,
                               )
                             : null,
-                          h('span', { class: 'stateLauncher__commandId' }, command.id),
+                          h('span', { class: 'commandId' }, command.id),
                         )
                       }),
                     ),
