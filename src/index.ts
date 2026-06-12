@@ -41,7 +41,7 @@ export type StateLauncherCommand<Id extends string = string> = {
   readonly description?: string
   /** Searchable tags used by the launcher filter. */
   readonly tags?: readonly string[]
-  /** Launch this command through its currently registered handler. */
+  /** Launch this command through its currently registered handlers. */
   launch(): Promise<void>
 }
 

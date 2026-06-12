@@ -80,7 +80,13 @@ export function defineLaunchableState<const Id extends string>(
   return command
 }
 
-/** Register commands so they can be discovered by the launcher UI. */
+/**
+ * Register commands so they can be discovered by the launcher UI.
+ *
+ * The returned cleanup removes only this registration call, which lets HMR
+ * dispose an old module instance without tearing down newer duplicate-id
+ * registrations or handlers attached from mounted components.
+ */
 export function registerLaunchableState(commands: readonly StateLauncherCommand[]): () => void {
   const registrations = commands.map((command) => ({ command }))
 
@@ -110,6 +116,8 @@ function unregisterRegistration(registration: CommandRegistration): void {
     !hasRegisteredCommand(record, registration.command) &&
     !record.retainedCommands.has(registration.command)
   ) {
+    // HMR-disposed handles must not fall back to their factory handler after
+    // their registration contribution has been removed.
     record.commands.delete(registration.command)
     registry.commandRecords.delete(registration.command)
     unregisteredCommands.add(registration.command)
@@ -152,6 +160,8 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
 
   activeCommandId = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
 
+  // Snapshot handlers so continuations attached during this launch replay once
+  // through active-state handling instead of being visited by Set iteration too.
   for (const launch of launchHandlers) {
     await launch()
   }
@@ -253,6 +263,8 @@ export function setCommandLaunchHandler(
   notifyCommandListeners()
 
   if (record.id === activeCommandId) {
+    // A command can reveal more UI as it launches; newly mounted handlers for
+    // the active state continue that launch immediately.
     void launch()
   }
 
@@ -349,6 +361,8 @@ function resolveCommandRecord(
 }
 
 function refreshCommandRecord(record: CommandRecord, fallbackCommand = record.command): void {
+  // Rebuild from live contributions so HMR cleanup can remove stale module
+  // definitions while preserving handlers attached from elsewhere.
   const command = getLatestRegisteredCommand(record) ?? fallbackCommand
   record.command = command
   record.id = command.id
