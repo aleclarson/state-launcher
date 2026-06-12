@@ -41,6 +41,7 @@
     "preact": "^10.29.2"
   },
   "devDependencies": {
+    "@tsdown/css": "^0.22.2",
     "@types/node": "^25.9.1",
     "happy-dom": "^20.10.1",
     "oxfmt": "^0.53.0",
