@@ -221,6 +221,46 @@ test('propagates cleanup errors once when another state is activated', async () 
   expect(thirdLaunch).toHaveBeenCalledOnce()
 })
 
+test('passes a launch context to handlers', async () => {
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch: vi.fn((context) => {
+      expect(context.signal).toBeInstanceOf(AbortSignal)
+      expect(context.signal.aborted).toBe(false)
+    }),
+  })
+
+  await command.launch()
+})
+
+test('aborts in-flight launches when another state is activated', async () => {
+  let finishFirstLaunch: (() => void) | undefined
+  let firstSignal: AbortSignal | undefined
+  const lateCleanup = vi.fn()
+  const first = defineLaunchableState('billing.paymentFailed', {
+    async launch(context) {
+      firstSignal = context.signal
+      await new Promise<void>((resolve) => {
+        finishFirstLaunch = resolve
+      })
+      return lateCleanup
+    },
+  })
+  const second = defineLaunchableState('inbox.manyMessages', { launch: vi.fn() })
+  registerLaunchableState([first, second])
+
+  const firstLaunch = first.launch()
+  await Promise.resolve()
+
+  await second.launch()
+
+  expect(firstSignal?.aborted).toBe(true)
+
+  finishFirstLaunch?.()
+  await firstLaunch
+
+  expect(lateCleanup).toHaveBeenCalledOnce()
+})
+
 test('rejects missing handlers, unknown ids, and invalid command objects', async () => {
   const command = defineLaunchableState('billing.emptyInvoices')
   registerLaunchableState([command])

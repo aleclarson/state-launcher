@@ -9,7 +9,10 @@ export type LaunchableStateOptions = {
   launch?: LaunchHandler;
 };
 export type LaunchCleanup = () => void | Promise<void>;
-export type LaunchHandler = () => void | LaunchCleanup | Promise<void | LaunchCleanup>;
+export type LaunchContext = {
+  readonly signal: AbortSignal;
+};
+export type LaunchHandler = (_: LaunchContext) => void | LaunchCleanup | Promise<void | LaunchCleanup>;
 export type MountedStateLauncher = {
   unmount(): void;
   open(): void;

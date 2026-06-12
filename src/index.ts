@@ -48,8 +48,16 @@ export type StateLauncherCommand<Id extends string = string> = {
 /** Cleanup returned by a launch handler while its state is active. */
 export type LaunchCleanup = () => void | Promise<void>
 
+/** Per-launch context passed to launch handlers. */
+export type LaunchContext = {
+  /** Aborted when a different command id is activated or the active command is cleared. */
+  readonly signal: AbortSignal
+}
+
 /** Handler that puts the host application into a launchable state. */
-export type LaunchHandler = () => void | LaunchCleanup | Promise<void | LaunchCleanup>
+export type LaunchHandler = (
+  context: LaunchContext,
+) => void | LaunchCleanup | Promise<void | LaunchCleanup>
 
 /** Metadata and optional behavior for a launchable state command. */
 export type LaunchableStateOptions = {

@@ -89,9 +89,9 @@ import { useLaunchableState } from 'state-launcher/preact'
 import { paymentFailed } from './launchable-states'
 
 export function BillingDebugState() {
-  useLaunchableState(paymentFailed, async () => {
-    await signInAsTestUser()
-    await createFailedPaymentMethod()
+  useLaunchableState(paymentFailed, async ({ signal }) => {
+    await signInAsTestUser({ signal })
+    await createFailedPaymentMethod({ signal })
     await navigateToBilling()
   })
 
@@ -108,6 +108,12 @@ Launch handlers may return a cleanup function. Cleanup functions run when a
 different command id is activated, before the new state's launch handlers run.
 That lets a launched state undo temporary setup when the launcher moves to
 another state.
+
+Launch handlers receive a context with an `AbortSignal`. The signal aborts when
+another command id is activated or the active command is cleared, so async setup
+can cancel stale work. If an aborted handler eventually returns a cleanup
+function, the launcher runs it immediately instead of retaining it for the new
+active state.
 
 ## Documentation map
 

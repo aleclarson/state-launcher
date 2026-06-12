@@ -1,7 +1,12 @@
 import { h, render } from 'preact'
 import { act } from 'preact/test-utils'
 
-import { clearCommands, defineLaunchableState, registerLaunchableState } from '../src/index'
+import {
+  clearCommands,
+  defineLaunchableState,
+  registerLaunchableState,
+  type LaunchHandler,
+} from '../src/index'
 import { getCommandRecord } from '../src/registry'
 import { useLaunchableState } from '../src/preact'
 
@@ -106,7 +111,7 @@ function Launchable({
   handler,
 }: {
   command: ReturnType<typeof defineLaunchableState>
-  handler: () => void | Promise<void>
+  handler: LaunchHandler
 }) {
   useLaunchableState(command, handler)
   return null

@@ -1,6 +1,7 @@
 import type {
   LaunchableStateOptions,
   LaunchCleanup,
+  LaunchContext,
   LaunchHandler,
   StateLauncherCommand,
 } from './index'
@@ -47,9 +48,15 @@ type CommandRegistry = {
   listeners: Set<() => void>
 }
 
+type ActiveLaunch = {
+  controller: AbortController
+  context: LaunchContext
+  id: string
+}
+
 let registry: CommandRegistry = createRegistry()
 let unregisteredCommands = new WeakSet<StateLauncherCommand>()
-let activeCommandId: string | undefined
+let activeLaunch: ActiveLaunch | undefined
 let activeLaunchCleanups: LaunchCleanup[] = []
 
 /**
@@ -164,12 +171,12 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
     throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  await activateCommand(id)
+  const context = await activateCommand(id)
 
   // Snapshot handlers so continuations attached during this launch replay once
   // through active-state handling instead of being visited by Set iteration too.
   for (const launch of launchHandlers) {
-    await runLaunchHandler(launch, id)
+    await runLaunchHandler(launch, id, context)
   }
 }
 
@@ -220,7 +227,8 @@ export function clearCommands(): void {
     ...createRegistry(),
     listeners,
   }
-  activeCommandId = undefined
+  activeLaunch?.controller.abort()
+  activeLaunch = undefined
   activeLaunchCleanups = []
   notifyCommandListeners()
 }
@@ -269,10 +277,10 @@ export function setCommandLaunchHandler(
   refreshCommandRecord(record)
   notifyCommandListeners()
 
-  if (record.id === activeCommandId) {
+  if (record.id === activeLaunch?.id) {
     // A command can reveal more UI as it launches; newly mounted handlers for
     // the active state continue that launch immediately.
-    void runLaunchHandler(launch, record.id)
+    void runLaunchHandler(launch, record.id, activeLaunch.context)
   }
 
   return () => {
@@ -431,34 +439,50 @@ function notifyCommandListeners(): void {
 }
 
 function clearActiveCommand(id: string): void {
-  if (activeCommandId === id) {
-    activeCommandId = undefined
+  if (activeLaunch?.id === id) {
+    activeLaunch.controller.abort()
+    activeLaunch = undefined
     activeLaunchCleanups = []
   }
 }
 
-async function activateCommand(id: string): Promise<void> {
-  if (activeCommandId === id) {
-    return
+async function activateCommand(id: string): Promise<LaunchContext> {
+  if (activeLaunch?.id === id) {
+    return activeLaunch.context
   }
 
   const cleanups = activeLaunchCleanups
-  activeCommandId = id
+  activeLaunch?.controller.abort()
+  const controller = new AbortController()
+  const context: LaunchContext = {
+    signal: controller.signal,
+  }
+  activeLaunch = {
+    controller,
+    context,
+    id,
+  }
   activeLaunchCleanups = []
 
   for (const cleanup of cleanups) {
     await cleanup()
   }
+
+  return context
 }
 
-async function runLaunchHandler(launch: LaunchHandler, id: string): Promise<void> {
-  const cleanup = await launch()
+async function runLaunchHandler(
+  launch: LaunchHandler,
+  id: string,
+  context: LaunchContext,
+): Promise<void> {
+  const cleanup = await launch(context)
 
   if (!isLaunchCleanup(cleanup)) {
     return
   }
 
-  if (activeCommandId === id) {
+  if (activeLaunch?.id === id && activeLaunch.context === context && !context.signal.aborted) {
     activeLaunchCleanups.push(cleanup)
     return
   }
