@@ -1,3 +1,5 @@
+/// <reference path="./css.d.ts" />
+
 import { signal } from '@preact/signals'
 import { createIsolet } from 'isolet-js/runtime'
 import { preact } from 'isolet-js/preact'

@@ -13,7 +13,6 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "skipLibCheck": true,
-    "allowArbitraryExtensions": true,
-    "types": []
+    "allowArbitraryExtensions": true
   }
 }

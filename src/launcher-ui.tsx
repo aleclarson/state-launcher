@@ -1,3 +1,5 @@
+/// <reference path="./css.d.ts" />
+
 import type { Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
 import { useEffect, useMemo, useState } from 'preact/hooks'
@@ -100,7 +102,7 @@ export function LauncherShell({ isOpen, position, setOpen, title }: LauncherProp
           </header>
           <input
             aria-label="Filter commands"
-            class={styles.search}
+            class={styles.searchInput}
             onInput={onSearchInput}
             onKeyDown={onSearchKeyDown}
             placeholder="Filter commands"
