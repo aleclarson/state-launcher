@@ -41,15 +41,15 @@
     "preact": "^10.29.2"
   },
   "devDependencies": {
-    "@types/node": "*",
-    "happy-dom": "^20.10.2",
-    "oxfmt": "*",
-    "oxlint": "*",
-    "radashi": "*",
-    "tsdown": "*",
-    "tsnapi": "^0.1.1",
-    "typescript": "*",
+    "@types/node": "^25.9.1",
+    "happy-dom": "^20.10.1",
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
+    "radashi": "^12.9.1",
+    "tsdown": "^0.22.2",
+    "tsnapi": "^0.3.3",
+    "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "*"
+    "vitest": "^4.1.8"
   }
 }
