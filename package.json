@@ -54,7 +54,7 @@
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "preact": "^10.29.2"
+    "preact": "*"
   },
   "packageManager": "pnpm@11.5.1"
 }
