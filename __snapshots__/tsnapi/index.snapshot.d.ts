@@ -6,8 +6,10 @@ export type LaunchableStateOptions = {
   label?: string;
   description?: string;
   tags?: string[];
-  launch?: () => void | Promise<void>;
+  launch?: LaunchHandler;
 };
+export type LaunchCleanup = () => void | Promise<void>;
+export type LaunchHandler = () => void | LaunchCleanup | Promise<void | LaunchCleanup>;
 export type MountedStateLauncher = {
   unmount(): void;
   open(): void;

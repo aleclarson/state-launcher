@@ -1,4 +1,9 @@
-import type { LaunchableStateOptions, StateLauncherCommand } from './index'
+import type {
+  LaunchableStateOptions,
+  LaunchCleanup,
+  LaunchHandler,
+  StateLauncherCommand,
+} from './index'
 
 const launchHandlerKey: unique symbol = Symbol('state-launcher launch handler')
 const hasLaunchHandlerKey: unique symbol = Symbol('state-launcher has launch handler')
@@ -6,7 +11,7 @@ const commandKey: unique symbol = Symbol('state-launcher command')
 
 type DefinedStateLauncherCommand<Id extends string = string> = StateLauncherCommand<Id> & {
   [commandKey]?: true
-  [launchHandlerKey]?: () => void | Promise<void>
+  [launchHandlerKey]?: LaunchHandler
   [hasLaunchHandlerKey]?: boolean
 }
 
@@ -23,8 +28,8 @@ export type CommandRecord = {
   tags?: string[]
   registrations: Set<CommandRegistration>
   retainedCommands: Set<StateLauncherCommand>
-  attachedHandlers: Set<() => void | Promise<void>>
-  launchHandlers: Set<() => void | Promise<void>>
+  attachedHandlers: Set<LaunchHandler>
+  launchHandlers: Set<LaunchHandler>
 }
 
 export type CommandRecordSnapshot = Readonly<{
@@ -45,6 +50,7 @@ type CommandRegistry = {
 let registry: CommandRegistry = createRegistry()
 let unregisteredCommands = new WeakSet<StateLauncherCommand>()
 let activeCommandId: string | undefined
+let activeLaunchCleanups: LaunchCleanup[] = []
 
 /**
  * Define a launchable state command.
@@ -147,6 +153,7 @@ function removeCommandRecord(record: CommandRecord): void {
 /** Launch a registered command by handle or id. */
 export async function launchCommand(commandOrId: StateLauncherCommand | string): Promise<void> {
   const record = resolveCommandRecord(commandOrId, false)
+  const id = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
   const launchHandlers = record
     ? [...record.launchHandlers]
     : typeof commandOrId === 'string'
@@ -154,16 +161,15 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
       : [getDefinedCommandLaunchHandler(commandOrId)].filter(isLaunchHandler)
 
   if (launchHandlers.length === 0) {
-    const id = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
     throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  activeCommandId = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
+  await activateCommand(id)
 
   // Snapshot handlers so continuations attached during this launch replay once
   // through active-state handling instead of being visited by Set iteration too.
   for (const launch of launchHandlers) {
-    await launch()
+    await runLaunchHandler(launch, id)
   }
 }
 
@@ -215,6 +221,7 @@ export function clearCommands(): void {
     listeners,
   }
   activeCommandId = undefined
+  activeLaunchCleanups = []
   notifyCommandListeners()
 }
 
@@ -253,7 +260,7 @@ export function subscribeCommandRecords(listener: () => void): () => void {
 
 export function setCommandLaunchHandler(
   command: StateLauncherCommand,
-  launch: () => void | Promise<void>,
+  launch: LaunchHandler,
 ): () => void {
   const record = registerCommand(command)
 
@@ -265,7 +272,7 @@ export function setCommandLaunchHandler(
   if (record.id === activeCommandId) {
     // A command can reveal more UI as it launches; newly mounted handlers for
     // the active state continue that launch immediately.
-    void launch()
+    void runLaunchHandler(launch, record.id)
   }
 
   return () => {
@@ -401,9 +408,7 @@ function hasRegisteredCommand(record: CommandRecord, command: StateLauncherComma
   return false
 }
 
-function getDefinedCommandLaunchHandler(
-  command: StateLauncherCommand,
-): (() => void | Promise<void>) | undefined {
+function getDefinedCommandLaunchHandler(command: StateLauncherCommand): LaunchHandler | undefined {
   const definedCommand = command as DefinedStateLauncherCommand
 
   if (definedCommand[hasLaunchHandlerKey]) {
@@ -415,9 +420,7 @@ function isDefinedCommand(command: StateLauncherCommand): boolean {
   return (command as DefinedStateLauncherCommand)[commandKey] === true
 }
 
-function isLaunchHandler(
-  launch: (() => void | Promise<void>) | undefined,
-): launch is () => void | Promise<void> {
+function isLaunchHandler(launch: LaunchHandler | undefined): launch is LaunchHandler {
   return Boolean(launch)
 }
 
@@ -430,7 +433,41 @@ function notifyCommandListeners(): void {
 function clearActiveCommand(id: string): void {
   if (activeCommandId === id) {
     activeCommandId = undefined
+    activeLaunchCleanups = []
   }
+}
+
+async function activateCommand(id: string): Promise<void> {
+  if (activeCommandId === id) {
+    return
+  }
+
+  const cleanups = activeLaunchCleanups
+  activeCommandId = id
+  activeLaunchCleanups = []
+
+  for (const cleanup of cleanups) {
+    await cleanup()
+  }
+}
+
+async function runLaunchHandler(launch: LaunchHandler, id: string): Promise<void> {
+  const cleanup = await launch()
+
+  if (!isLaunchCleanup(cleanup)) {
+    return
+  }
+
+  if (activeCommandId === id) {
+    activeLaunchCleanups.push(cleanup)
+    return
+  }
+
+  await cleanup()
+}
+
+function isLaunchCleanup(cleanup: unknown): cleanup is LaunchCleanup {
+  return typeof cleanup === 'function'
 }
 
 function once(callback: () => void): () => void {

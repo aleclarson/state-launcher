@@ -104,6 +104,11 @@ part of the API contract. When a command is launched, it becomes the active
 state; handlers attached later for the active command fire immediately so
 conditional UI can continue entering that state as it mounts.
 
+Launch handlers may return a cleanup function. Cleanup functions run when a
+different command id is activated, before the new state's launch handlers run.
+That lets a launched state undo temporary setup when the launcher moves to
+another state.
+
 ## Documentation map
 
 - [`docs/context.md`](docs/context.md): concepts, lifecycle, command identity, and API-selection guidance.

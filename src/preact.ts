@@ -1,6 +1,6 @@
 import { useEffect } from 'preact/hooks'
 
-import type { StateLauncherCommand } from './index'
+import type { LaunchHandler, StateLauncherCommand } from './index'
 import { setCommandLaunchHandler } from './registry'
 
 /**
@@ -10,9 +10,6 @@ import { setCommandLaunchHandler } from './registry'
  * owns only the handler lifecycle. Cleanup removes the exact handler installed
  * by this hook, so newer handlers are not accidentally removed.
  */
-export function useLaunchableState(
-  command: StateLauncherCommand,
-  handler: () => void | Promise<void>,
-): void {
+export function useLaunchableState(command: StateLauncherCommand, handler: LaunchHandler): void {
   useEffect(() => setCommandLaunchHandler(command, handler), [command, handler])
 }

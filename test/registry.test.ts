@@ -137,6 +137,90 @@ test('launches every handler for a command', async () => {
   expect(attachedLaunch).toHaveBeenCalledOnce()
 })
 
+test('runs launch cleanups when another state is activated', async () => {
+  const calls: string[] = []
+  const cleanup = vi.fn(() => {
+    calls.push('cleanup')
+  })
+  const firstLaunch = vi.fn(() => cleanup)
+  const secondLaunch = vi.fn(() => {
+    calls.push('second launch')
+  })
+  const first = defineLaunchableState('billing.paymentFailed', { launch: firstLaunch })
+  const second = defineLaunchableState('inbox.manyMessages', { launch: secondLaunch })
+  registerLaunchableState([first, second])
+
+  await first.launch()
+
+  expect(firstLaunch).toHaveBeenCalledOnce()
+  expect(cleanup).not.toHaveBeenCalled()
+
+  await second.launch()
+
+  expect(cleanup).toHaveBeenCalledOnce()
+  expect(secondLaunch).toHaveBeenCalledOnce()
+  expect(calls).toEqual(['cleanup', 'second launch'])
+})
+
+test('does not run launch cleanups when the same state is relaunched', async () => {
+  const cleanup = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch: vi.fn(() => cleanup),
+  })
+
+  await command.launch()
+  await command.launch()
+
+  expect(cleanup).not.toHaveBeenCalled()
+})
+
+test('runs attached handler cleanups when another state is activated', async () => {
+  const cleanup = vi.fn()
+  const first = defineLaunchableState('billing.paymentFailed')
+  const second = defineLaunchableState('inbox.manyMessages', { launch: vi.fn() })
+  setCommandLaunchHandler(first, () => cleanup)
+  registerLaunchableState([second])
+
+  await first.launch()
+  await second.launch()
+
+  expect(cleanup).toHaveBeenCalledOnce()
+})
+
+test('records cleanups from handlers attached for the active command', async () => {
+  const cleanup = vi.fn()
+  const first = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  const second = defineLaunchableState('inbox.manyMessages', { launch: vi.fn() })
+  registerLaunchableState([first, second])
+
+  await first.launch()
+  setCommandLaunchHandler(first, () => cleanup)
+  await second.launch()
+
+  expect(cleanup).toHaveBeenCalledOnce()
+})
+
+test('propagates cleanup errors once when another state is activated', async () => {
+  const error = new Error('Host cleanup failed.')
+  const cleanup = vi.fn(() => {
+    throw error
+  })
+  const first = defineLaunchableState('billing.paymentFailed', { launch: () => cleanup })
+  const secondLaunch = vi.fn()
+  const thirdLaunch = vi.fn()
+  const second = defineLaunchableState('inbox.manyMessages', { launch: secondLaunch })
+  const third = defineLaunchableState('settings.open', { launch: thirdLaunch })
+  registerLaunchableState([first, second, third])
+
+  await first.launch()
+  await expect(second.launch()).rejects.toBe(error)
+  await third.launch()
+
+  expect(cleanup).toHaveBeenCalledOnce()
+  expect(secondLaunch).not.toHaveBeenCalled()
+  expect(thirdLaunch).toHaveBeenCalledOnce()
+})
+
 test('rejects missing handlers, unknown ids, and invalid command objects', async () => {
   const command = defineLaunchableState('billing.emptyInvoices')
   registerLaunchableState([command])

@@ -45,6 +45,12 @@ export type StateLauncherCommand<Id extends string = string> = {
   launch(): Promise<void>
 }
 
+/** Cleanup returned by a launch handler while its state is active. */
+export type LaunchCleanup = () => void | Promise<void>
+
+/** Handler that puts the host application into a launchable state. */
+export type LaunchHandler = () => void | LaunchCleanup | Promise<void | LaunchCleanup>
+
 /** Metadata and optional behavior for a launchable state command. */
 export type LaunchableStateOptions = {
   /** Human-readable label shown in the launcher panel. */
@@ -54,5 +60,5 @@ export type LaunchableStateOptions = {
   /** Searchable tags used by the launcher filter. */
   tags?: string[]
   /** Handler that puts the host application into this state. */
-  launch?: () => void | Promise<void>
+  launch?: LaunchHandler
 }

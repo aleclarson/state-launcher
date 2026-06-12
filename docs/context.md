@@ -63,6 +63,8 @@ A command can have multiple launch handlers. `defineLaunchableState` accepts one
 
 When a command is launched, it becomes the active state. If a handler is attached later for the active command, that handler fires immediately. This lets conditional rendering continue a launchable state as newly mounted code becomes available.
 
+Handlers may return cleanup functions. Returned cleanup functions run when a different command id becomes active, before the new state's launch handlers run. Relaunching the same command id does not run cleanup; the state is cleaned up when the launcher moves to another state.
+
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 
 ## API selection

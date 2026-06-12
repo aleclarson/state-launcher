@@ -5,6 +5,8 @@ import {
   mountStateLauncher,
   registerLaunchableState,
   unregisterCommand,
+  type LaunchCleanup,
+  type LaunchHandler,
   type LaunchableStateOptions,
   type MountedStateLauncher,
   type MountStateLauncherOptions,
@@ -23,6 +25,8 @@ test('exports the package surface', () => {
 })
 
 type _PublicTypes = [
+  LaunchCleanup,
+  LaunchHandler,
   LaunchableStateOptions,
   MountedStateLauncher,
   MountStateLauncherOptions,
