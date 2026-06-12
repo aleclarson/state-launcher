@@ -3,6 +3,7 @@ import {
   defineLaunchableState,
   launchCommand,
   mountStateLauncher,
+  registerLaunchableState,
   unregisterCommand,
   type LaunchableStateOptions,
   type MountedStateLauncher,
@@ -16,6 +17,7 @@ test('exports the package surface', () => {
   expect(typeof defineLaunchableState).toBe('function')
   expect(typeof launchCommand).toBe('function')
   expect(typeof mountStateLauncher).toBe('function')
+  expect(typeof registerLaunchableState).toBe('function')
   expect(typeof unregisterCommand).toBe('function')
   expect(typeof useLaunchableState).toBe('function')
 })

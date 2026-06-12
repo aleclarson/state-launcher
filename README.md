@@ -35,26 +35,25 @@ pnpm add state-launcher
 
 ## Minimal example
 
-This example proves the core workflow: define a stable command id once, attach behavior from app code, mount the isolated panel, and still launch the same command without the panel.
+This example proves the core workflow: define stable command handles, register the
+ones that should appear in the launcher, mount the isolated panel, and still
+launch the same command without the panel.
 
 ```ts
-import { defineLaunchableState, mountStateLauncher } from 'state-launcher'
+import { defineLaunchableState, mountStateLauncher, registerLaunchableState } from 'state-launcher'
 
 export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
   description: 'Customer has a failed payment method.',
   tags: ['billing', 'card'],
-})
-
-// Later, in code that knows how to create this state:
-defineLaunchableState(paymentFailed.id, {
-  label: 'Payment failed',
   async launch() {
     await signInAsTestUser()
     await createFailedPaymentMethod()
     await navigateToBilling()
   },
 })
+
+registerLaunchableState([paymentFailed])
 
 const launcher = mountStateLauncher({
   target: document.body,
@@ -66,6 +65,11 @@ const launcher = mountStateLauncher({
 await paymentFailed.launch()
 launcher.toggle()
 ```
+
+`defineLaunchableState()` is annotated as side-effect free, and the package marks
+its modules as side-effect free for bundlers. Keep `registerLaunchableState()`
+and `mountStateLauncher()` in dev-only code paths when you want production
+bundles to drop launchable-state definitions.
 
 ## Preact lifecycle hook
 

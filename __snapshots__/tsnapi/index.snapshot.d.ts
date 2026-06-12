@@ -22,6 +22,9 @@ export type MountStateLauncherOptions = {
 };
 export type StateLauncherCommand<Id extends string = string> = {
   readonly id: Id;
+  readonly label?: string;
+  readonly description?: string;
+  readonly tags?: readonly string[];
   launch(): Promise<void>;
 };
 // #endregion
@@ -31,5 +34,6 @@ export declare function clearCommands(): void;
 export declare function defineLaunchableState<const Id extends string>(_: Id, _?: LaunchableStateOptions): StateLauncherCommand<Id>;
 export declare function launchCommand(_: StateLauncherCommand | string): Promise<void>;
 export declare function mountStateLauncher(_?: MountStateLauncherOptions): MountedStateLauncher;
+export declare function registerLaunchableState(_: readonly StateLauncherCommand[]): void;
 export declare function unregisterCommand(_: StateLauncherCommand | string): void;
 // #endregion

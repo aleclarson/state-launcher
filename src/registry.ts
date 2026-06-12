@@ -1,6 +1,18 @@
 import type { LaunchableStateOptions, StateLauncherCommand } from './index'
 
+const launchHandlerKey: unique symbol = Symbol('state-launcher launch handler')
+const hasLaunchHandlerKey: unique symbol = Symbol('state-launcher has launch handler')
+const commandKey: unique symbol = Symbol('state-launcher command')
+
+type DefinedStateLauncherCommand<Id extends string = string> = StateLauncherCommand<Id> & {
+  [commandKey]?: true
+  [launchHandlerKey]?: () => void | Promise<void>
+  [hasLaunchHandlerKey]?: boolean
+}
+
 export type CommandRecord = {
+  command: StateLauncherCommand
+  commands: Set<StateLauncherCommand>
   id: string
   label?: string
   description?: string
@@ -24,13 +36,15 @@ type CommandRegistry = {
 }
 
 let registry: CommandRegistry = createRegistry()
+let unregisteredCommands = new WeakSet<StateLauncherCommand>()
 
 /**
- * Define or update a launchable state command.
+ * Define a launchable state command.
  *
- * Reusing an existing id returns the same command object and updates its
- * metadata and launch handler. Empty ids throw.
+ * Command definition is side-effect free; call registerLaunchableState to make
+ * commands discoverable by the launcher UI. Empty ids throw.
  */
+/* @__NO_SIDE_EFFECTS__ */
 export function defineLaunchableState<const Id extends string>(
   id: Id,
   options?: LaunchableStateOptions,
@@ -39,44 +53,47 @@ export function defineLaunchableState<const Id extends string>(
     throw new Error('State launcher command id must not be empty.')
   }
 
-  let command = registry.commandsById.get(id) as StateLauncherCommand<Id> | undefined
-  let record: CommandRecord | undefined
-
-  if (command) {
-    record = registry.commandRecords.get(command)
-    if (!record) {
-      throw new Error(`State launcher command "${id}" has an invalid registry record.`)
-    }
-  } else {
-    const newCommand: StateLauncherCommand<Id> = {
-      id,
-      async launch() {
-        await launchCommand(newCommand)
-      },
-    }
-    command = newCommand
-    record = { id }
-    registry.commandsById.set(id, command)
-    registry.commandRecords.set(command, record)
+  const command: DefinedStateLauncherCommand<Id> = {
+    [commandKey]: true,
+    id,
+    label: options?.label,
+    description: options?.description,
+    tags: options?.tags ? [...options.tags] : undefined,
+    async launch() {
+      await launchCommand(command)
+    },
   }
 
-  if (options) {
-    applyOptions(record, options)
+  if (options && 'launch' in options) {
+    command[hasLaunchHandlerKey] = true
+    command[launchHandlerKey] = options.launch
+  }
+
+  return command
+}
+
+/** Register commands so they can be discovered by the launcher UI. */
+export function registerLaunchableState(commands: readonly StateLauncherCommand[]): void {
+  for (const command of commands) {
+    registerCommand(command)
   }
 
   notifyCommandListeners()
-  return command
 }
 
 /** Launch a registered command by handle or id. */
 export async function launchCommand(commandOrId: StateLauncherCommand | string): Promise<void> {
-  const record = resolveCommandRecord(commandOrId)
+  const record = resolveCommandRecord(commandOrId, false)
+  const launch =
+    record?.launch ??
+    (typeof commandOrId === 'string' ? undefined : getDefinedCommandLaunchHandler(commandOrId))
 
-  if (!record.launch) {
-    throw new Error(`State launcher command "${record.id}" does not have a launch handler.`)
+  if (!launch) {
+    const id = typeof commandOrId === 'string' ? commandOrId : commandOrId.id
+    throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  await record.launch()
+  await launch()
 }
 
 /** Unregister a command by handle or id. Missing string ids are ignored. */
@@ -85,8 +102,16 @@ export function unregisterCommand(commandOrId: StateLauncherCommand | string): v
     const command = registry.commandsById.get(commandOrId)
 
     if (command) {
+      const record = registry.commandRecords.get(command)
       registry.commandsById.delete(commandOrId)
-      registry.commandRecords.delete(command)
+
+      if (record) {
+        for (const command of record.commands) {
+          registry.commandRecords.delete(command)
+          unregisteredCommands.add(command)
+        }
+      }
+
       notifyCommandListeners()
     }
 
@@ -100,7 +125,10 @@ export function unregisterCommand(commandOrId: StateLauncherCommand | string): v
   }
 
   registry.commandsById.delete(record.id)
-  registry.commandRecords.delete(commandOrId)
+  for (const command of record.commands) {
+    registry.commandRecords.delete(command)
+    unregisteredCommands.add(command)
+  }
   notifyCommandListeners()
 }
 
@@ -128,7 +156,7 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
 
     if (record) {
       records.push({
-        command,
+        command: record.command,
         id: record.id,
         label: record.label,
         description: record.description,
@@ -153,11 +181,7 @@ export function setCommandLaunchHandler(
   command: StateLauncherCommand,
   launch: () => void | Promise<void>,
 ): () => void {
-  const record = registry.commandRecords.get(command)
-
-  if (!record) {
-    throw new Error('Invalid state launcher command.')
-  }
+  const record = registerCommand(command)
 
   record.launch = launch
   notifyCommandListeners()
@@ -171,6 +195,43 @@ export function setCommandLaunchHandler(
   }
 }
 
+function registerCommand(command: StateLauncherCommand): CommandRecord {
+  if (!isDefinedCommand(command)) {
+    throw new Error('Invalid state launcher command.')
+  }
+
+  unregisteredCommands.delete(command)
+
+  const existingRecord = registry.commandRecords.get(command)
+
+  if (existingRecord) {
+    existingRecord.commands.add(command)
+    applyCommandMetadata(existingRecord, command)
+    return existingRecord
+  }
+
+  const idRecord = registry.commandsById.get(command.id)
+  const record = idRecord ? registry.commandRecords.get(idRecord) : undefined
+
+  if (record) {
+    registry.commandsById.set(command.id, command)
+    record.commands.add(command)
+    registry.commandRecords.set(command, record)
+    applyCommandMetadata(record, command)
+    return record
+  }
+
+  const newRecord: CommandRecord = {
+    command,
+    commands: new Set([command]),
+    id: command.id,
+  }
+  registry.commandsById.set(command.id, command)
+  registry.commandRecords.set(command, newRecord)
+  applyCommandMetadata(newRecord, command)
+  return newRecord
+}
+
 function createRegistry(): CommandRegistry {
   return {
     commandRecords: new WeakMap(),
@@ -179,7 +240,10 @@ function createRegistry(): CommandRegistry {
   }
 }
 
-function resolveCommandRecord(commandOrId: StateLauncherCommand | string): CommandRecord {
+function resolveCommandRecord(
+  commandOrId: StateLauncherCommand | string,
+  requireRegistered = true,
+): CommandRecord | undefined {
   if (typeof commandOrId === 'string') {
     const command = registry.commandsById.get(commandOrId)
 
@@ -192,18 +256,42 @@ function resolveCommandRecord(commandOrId: StateLauncherCommand | string): Comma
 
   const record = registry.commandRecords.get(commandOrId)
 
-  if (!record) {
+  if (
+    !record &&
+    (requireRegistered || !isDefinedCommand(commandOrId) || unregisteredCommands.has(commandOrId))
+  ) {
     throw new Error('Invalid state launcher command.')
   }
 
   return record
 }
 
-function applyOptions(record: CommandRecord, options: LaunchableStateOptions): void {
-  record.label = options.label
-  record.description = options.description
-  record.tags = options.tags ? [...options.tags] : undefined
-  record.launch = options.launch
+function applyCommandMetadata(record: CommandRecord, command: StateLauncherCommand): void {
+  record.command = command
+  record.id = command.id
+  record.label = command.label
+  record.description = command.description
+  record.tags = command.tags ? [...command.tags] : undefined
+
+  const launch = getDefinedCommandLaunchHandler(command)
+
+  if (launch) {
+    record.launch = launch
+  }
+}
+
+function getDefinedCommandLaunchHandler(
+  command: StateLauncherCommand,
+): (() => void | Promise<void>) | undefined {
+  const definedCommand = command as DefinedStateLauncherCommand
+
+  if (definedCommand[hasLaunchHandlerKey]) {
+    return definedCommand[launchHandlerKey]
+  }
+}
+
+function isDefinedCommand(command: StateLauncherCommand): boolean {
+  return (command as DefinedStateLauncherCommand)[commandKey] === true
 }
 
 function notifyCommandListeners(): void {

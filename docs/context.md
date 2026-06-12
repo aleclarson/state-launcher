@@ -14,10 +14,11 @@ Use stable, dotted ids such as `billing.paymentFailed` or `inbox.manyMessages`.
 
 - The full id is the command identity.
 - The first dotted segment is used as the panel group name.
-- Re-defining the same id returns the same command object and updates its registry record.
+- Defining a command creates a side-effect-free handle that can carry metadata and an optional launch handler.
+- Registering commands makes them discoverable by the launcher. Duplicate ids are merged into one registry record.
 - Empty ids are invalid.
 
-A common pattern is to define exported command handles in one module and attach handlers near the application code that owns the relevant state transition.
+A common pattern is to define exported command handles in one module and register the commands from a dev-only entrypoint.
 
 ```ts
 // launchable-states.ts
@@ -31,23 +32,19 @@ export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
 
 ```ts
 // billing-debug.ts
-import { defineLaunchableState } from 'state-launcher'
+import { registerLaunchableState } from 'state-launcher'
 import { paymentFailed } from './launchable-states'
 
-defineLaunchableState(paymentFailed.id, {
-  label: 'Payment failed',
-  async launch() {
-    await setupBillingFailure()
-  },
-})
+registerLaunchableState([paymentFailed])
 ```
 
 ## Lifecycle and cleanup
 
-The registry is process-local. Commands remain registered until they are unregistered or the registry is cleared.
+The registry is process-local. Command handles are plain values; the launcher only discovers commands after they are registered. Registered commands remain in the launcher registry until they are unregistered or the registry is cleared.
 
 Use:
 
+- `registerLaunchableState(commands)` to make command handles visible to the launcher.
 - `unregisterCommand(commandOrId)` to remove one command.
 - `clearCommands()` to reset the registry, especially between tests.
 - `mountStateLauncher(...).unmount()` to remove the UI while leaving command records intact.
@@ -56,7 +53,7 @@ Mounted launchers subscribe to registry changes. Clearing commands while a launc
 
 ## Launch handlers
 
-A command can exist before it has a handler. In the launcher UI, commands without handlers are shown as disabled and ranked below commands that can be launched. Programmatic attempts to launch a command without a handler reject with an error. This lets shared modules export command handles without importing app setup code.
+A command can exist before it has a handler. In the launcher UI, registered commands without handlers are shown as disabled and ranked below commands that can be launched. Programmatic attempts to launch a command without a handler reject with an error. This lets shared modules export command handles without importing app setup code.
 
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 
@@ -70,6 +67,7 @@ import {
   defineLaunchableState,
   launchCommand,
   mountStateLauncher,
+  registerLaunchableState,
   unregisterCommand,
 } from 'state-launcher'
 ```
@@ -80,7 +78,7 @@ Use `state-launcher/preact` only when a Preact component should own a handler li
 import { useLaunchableState } from 'state-launcher/preact'
 ```
 
-The hook attaches the handler on mount/update and removes that exact handler during cleanup. It does not own labels, descriptions, or tags.
+The hook attaches the handler on mount/update, registers the command for launcher discovery, and removes that exact handler during cleanup. Metadata still comes from the command handle.
 
 ## Launcher UI behavior
 

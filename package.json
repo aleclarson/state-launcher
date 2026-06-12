@@ -1,7 +1,6 @@
 {
   "name": "state-launcher",
   "version": "0.1.1",
-  "packageManager": "pnpm@11.5.1",
   "license": "MIT",
   "author": "Alec Larson",
   "repository": {
@@ -14,6 +13,7 @@
     "examples"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
@@ -52,5 +52,6 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
-  }
+  },
+  "packageManager": "pnpm@11.5.1"
 }

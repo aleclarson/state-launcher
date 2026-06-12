@@ -1,4 +1,4 @@
-import { defineLaunchableState, mountStateLauncher } from '../src/index'
+import { defineLaunchableState, mountStateLauncher, registerLaunchableState } from '../src/index'
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 
@@ -11,7 +11,7 @@ const billingPaymentFailed = defineLaunchableState('billing.paymentFailed', {
   },
 })
 
-defineLaunchableState('billing.emptyInvoices', {
+const billingEmptyInvoices = defineLaunchableState('billing.emptyInvoices', {
   label: 'Empty invoices',
   description: 'Customer has no invoices.',
   tags: ['billing'],
@@ -20,7 +20,7 @@ defineLaunchableState('billing.emptyInvoices', {
   },
 })
 
-defineLaunchableState('inbox.manyMessages', {
+const inboxManyMessages = defineLaunchableState('inbox.manyMessages', {
   label: 'Many messages',
   description: 'Inbox is full of unread messages.',
   tags: ['inbox'],
@@ -30,7 +30,7 @@ defineLaunchableState('inbox.manyMessages', {
   },
 })
 
-defineLaunchableState('inbox.launchError', {
+const inboxLaunchError = defineLaunchableState('inbox.launchError', {
   label: 'Launch error',
   description: 'Shows panel error handling.',
   tags: ['inbox', 'error'],
@@ -38,6 +38,13 @@ defineLaunchableState('inbox.launchError', {
     throw new Error('Demo command failed.')
   },
 })
+
+registerLaunchableState([
+  billingPaymentFailed,
+  billingEmptyInvoices,
+  inboxManyMessages,
+  inboxLaunchError,
+])
 
 mountStateLauncher({
   initiallyOpen: true,

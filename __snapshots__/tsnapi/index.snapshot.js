@@ -6,5 +6,6 @@ export function clearCommands() {}
 export function defineLaunchableState(_, _) {}
 export async function launchCommand(_) {}
 export function mountStateLauncher(_) {}
+export function registerLaunchableState(_) {}
 export function unregisterCommand(_) {}
 // #endregion

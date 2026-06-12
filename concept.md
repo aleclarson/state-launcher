@@ -61,37 +61,40 @@ The first version should not include persistence, history, command acknowledgeme
 Application code mounts the launcher once:
 
 ```ts
-import { mountStateLauncher } from "state-launcher";
+import { mountStateLauncher, registerLaunchableState } from 'state-launcher'
+import { billingPaymentFailed, inboxManyMessages } from './debug/commands'
+
+registerLaunchableState([billingPaymentFailed, inboxManyMessages])
 
 const launcher = mountStateLauncher({
   target: document.body,
   initiallyOpen: false,
-  position: "bottom-right",
-});
+  position: 'bottom-right',
+})
 
-launcher.unmount();
+launcher.unmount()
 ```
 
 Application code defines launchable state symbols in a dedicated module so they can be imported by registration code, tests, and other commands that need command chaining. The prefix before the first `.` is used as the UI group:
 
 ```ts
 // src/debug/commands.ts
-import { defineLaunchableState } from "state-launcher";
+import { defineLaunchableState } from 'state-launcher'
 
-export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed");
-export const inboxManyMessages = defineLaunchableState("inbox.manyMessages");
+export const billingPaymentFailed = defineLaunchableState('billing.paymentFailed')
+export const inboxManyMessages = defineLaunchableState('inbox.manyMessages')
 ```
 
 Application code can attach a launch handler when defining a launchable state:
 
 ```ts
-export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed", {
-  label: "Payment failed",
-  description: "Customer has a failed payment method.",
+export const billingPaymentFailed = defineLaunchableState('billing.paymentFailed', {
+  label: 'Payment failed',
+  description: 'Customer has a failed payment method.',
   launch() {
     // Host application code owns the behavior.
   },
-});
+})
 ```
 
 For shared command symbols, keep definitions in a dedicated module and attach handlers from feature code or a Preact hook.
@@ -99,72 +102,74 @@ For shared command symbols, keep definitions in a dedicated module and attach ha
 Commands can also be launched programmatically without using the visual panel:
 
 ```ts
-import { billingPaymentFailed } from "./commands";
+import { billingPaymentFailed } from './commands'
 
-await billingPaymentFailed.launch();
+await billingPaymentFailed.launch()
 ```
 
 Suggested API shape:
 
 ```ts
 export type MountStateLauncherOptions = {
-  target?: HTMLElement;
-  initiallyOpen?: boolean;
-  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
-  title?: string;
-};
+  target?: HTMLElement
+  initiallyOpen?: boolean
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+  title?: string
+}
 
 export type MountedStateLauncher = {
-  unmount(): void;
-  open(): void;
-  close(): void;
-  toggle(): void;
-};
+  unmount(): void
+  open(): void
+  close(): void
+  toggle(): void
+}
 
 export type StateLauncherCommand<Id extends string = string> = {
-  readonly id: Id;
-  launch(): Promise<void>;
-};
+  readonly id: Id
+  readonly label?: string
+  readonly description?: string
+  readonly tags?: readonly string[]
+  launch(): Promise<void>
+}
 
 export type LaunchableStateOptions = {
-  label?: string;
-  description?: string;
-  tags?: string[];
-  launch?: () => void | Promise<void>;
-};
+  label?: string
+  description?: string
+  tags?: string[]
+  launch?: () => void | Promise<void>
+}
 
-export function mountStateLauncher(
-  options?: MountStateLauncherOptions,
-): MountedStateLauncher;
+export function mountStateLauncher(options?: MountStateLauncherOptions): MountedStateLauncher
 
 export function defineLaunchableState<const Id extends string>(
   id: Id,
   options?: LaunchableStateOptions,
-): StateLauncherCommand<Id>;
+): StateLauncherCommand<Id>
 
-export function launchCommand(command: StateLauncherCommand | string): Promise<void>;
+export function launchCommand(command: StateLauncherCommand | string): Promise<void>
 
-export function unregisterCommand(command: StateLauncherCommand | string): void;
-export function clearCommands(): void;
+export function registerLaunchableState(commands: readonly StateLauncherCommand[]): void
+export function unregisterCommand(command: StateLauncherCommand | string): void
+export function clearCommands(): void
 ```
 
-Calling `defineLaunchableState` with options registers or replaces the launch handler for that command id. Repeated calls with the same id should return the same command object and update its internal record, so a dedicated symbol module and feature-local handler attachment stay connected.
+Calling `defineLaunchableState` creates a side-effect-free command handle. The handle carries its id, optional metadata, and optional launch handler. Calling `registerLaunchableState` with an array of commands makes those commands discoverable by the launcher UI. Repeated registered ids should merge into one launcher record, with the later registration updating metadata and launch behavior.
 
-Each `StateLauncherCommand` has a `launch()` method that runs its registered launch handler. `launchCommand` is a convenience wrapper for code that only has a command id or generic command reference. Missing handlers and launch errors should reject/throw and be reported in the UI when launched from the panel.
+Each `StateLauncherCommand` has a `launch()` method that runs its own launch handler or the current handler attached through registration/hooks. `launchCommand` is a convenience wrapper for code that only has a command id or generic command reference. String ids resolve through the launcher registry. Missing handlers and launch errors should reject/throw and be reported in the UI when launched from the panel.
 
 Launchable state symbols are intentionally lightweight wrappers around stable string ids. They exist to avoid typo-prone string reuse and to make command chaining explicit:
 
 ```ts
-import { defineLaunchableState } from "state-launcher";
-import { inboxManyMessages } from "./commands";
+import { defineLaunchableState } from 'state-launcher'
+import { inboxManyMessages } from './commands'
 
-export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed", {
-  label: "Payment failed",
+export const billingPaymentFailed = defineLaunchableState('billing.paymentFailed', {
+  label: 'Payment failed',
   async launch() {
-    await setupBillingFailure();
-    await inboxManyMessages.launch();
+    await setupBillingFailure()
+    await inboxManyMessages.launch()
   },
-});
+})
 ```
 
 ## Preact Submodule
@@ -172,15 +177,15 @@ export const billingPaymentFailed = defineLaunchableState("billing.paymentFailed
 `state-launcher/preact` should provide basic hooks for Preact applications that want command registration to follow component lifecycle.
 
 ```ts
-import { useLaunchableState } from "state-launcher/preact";
-import { billingPaymentFailed } from "./commands";
+import { useLaunchableState } from 'state-launcher/preact'
+import { billingPaymentFailed } from './commands'
 
 export function BillingDebugCommands() {
   useLaunchableState(billingPaymentFailed, () => {
     // Host application behavior.
-  });
+  })
 
-  return null;
+  return null
 }
 ```
 
@@ -190,31 +195,32 @@ Suggested submodule API:
 export function useLaunchableState(
   command: StateLauncherCommand,
   handler: () => void | Promise<void>,
-): void;
+): void
 ```
 
-The hook should attach only the launch handler on mount/update and unregister that handler on unmount. Label, description, and tags are provided by `defineLaunchableState`, not by the hook. The hook should not mount the launcher UI automatically.
+The hook should attach only the launch handler on mount/update and remove that exact handler on unmount. Attaching the handler registers the command so the launcher can discover mounted command behavior. Label, description, and tags are provided by `defineLaunchableState`, not by the hook. The hook should not mount the launcher UI automatically.
 
 ## Runtime Model
 
-`state-launcher` keeps command metadata internal. Command objects are tagged in a `WeakMap` so arbitrary objects cannot be treated as valid `StateLauncherCommand` instances just because they have an `id` property.
+`state-launcher` keeps command registration internal. Command objects are marked with a private symbol so arbitrary objects cannot be treated as valid `StateLauncherCommand` instances just because they have an `id` property.
 
 ```ts
 type CommandRecord = {
-  id: string;
-  label?: string;
-  description?: string;
-  tags?: string[];
-  launch?: () => void | Promise<void>;
-};
+  command: StateLauncherCommand
+  id: string
+  label?: string
+  description?: string
+  tags?: string[]
+  launch?: () => void | Promise<void>
+}
 
 type LauncherRegistry = {
-  commandRecords: WeakMap<StateLauncherCommand, CommandRecord>;
-  commandsById: Map<string, StateLauncherCommand>;
-};
+  commandRecords: WeakMap<StateLauncherCommand, CommandRecord>
+  commandsById: Map<string, StateLauncherCommand>
+}
 ```
 
-The public `id` is for display, filtering, and explicit string-based launching. The internal WeakMap tag is the source of truth for command identity and launch metadata.
+The public `id` is for display, filtering, and explicit string-based launching. The registry tracks command records by command handle and by id so registered duplicate ids collapse into one launcher entry.
 
 Command groups are derived from the command id prefix before the first `.`. For example, `billing.paymentFailed` belongs to the `billing` group. Commands without a `.` can be shown in an ungrouped/default section. The MVP should not include explicit group/surface registration.
 

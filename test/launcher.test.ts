@@ -1,4 +1,9 @@
-import { clearCommands, defineLaunchableState, mountStateLauncher } from '../src/index'
+import {
+  clearCommands,
+  defineLaunchableState,
+  mountStateLauncher,
+  registerLaunchableState,
+} from '../src/index'
 
 afterEach(() => {
   document.body.replaceChildren()
@@ -72,16 +77,18 @@ test('unmount removes launcher dom and is idempotent', () => {
 })
 
 test('renders registered commands grouped by id prefix', () => {
-  defineLaunchableState('billing.paymentFailed', {
-    label: 'Payment failed',
-    description: 'Customer has a failed payment method.',
-  })
-  defineLaunchableState('inbox.manyMessages', {
-    label: 'Many messages',
-  })
-  defineLaunchableState('reset', {
-    label: 'Reset app',
-  })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      description: 'Customer has a failed payment method.',
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+    }),
+    defineLaunchableState('reset', {
+      label: 'Reset app',
+    }),
+  ])
 
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
@@ -95,13 +102,15 @@ test('renders registered commands grouped by id prefix', () => {
 })
 
 test('filters commands with fuzzysort2', async () => {
-  defineLaunchableState('billing.paymentFailed', {
-    label: 'Payment failed',
-    tags: ['card'],
-  })
-  defineLaunchableState('inbox.manyMessages', {
-    label: 'Many messages',
-  })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      tags: ['card'],
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+    }),
+  ])
 
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
@@ -118,14 +127,16 @@ test('filters commands with fuzzysort2', async () => {
 test('activates the selected command with keyboard navigation', async () => {
   const firstLaunch = vi.fn()
   const secondLaunch = vi.fn()
-  defineLaunchableState('billing.paymentFailed', {
-    label: 'Payment failed',
-    launch: firstLaunch,
-  })
-  defineLaunchableState('inbox.manyMessages', {
-    label: 'Many messages',
-    launch: secondLaunch,
-  })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: firstLaunch,
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      launch: secondLaunch,
+    }),
+  ])
 
   mountStateLauncher({ initiallyOpen: true })
   const search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
@@ -140,9 +151,11 @@ test('activates the selected command with keyboard navigation', async () => {
 })
 
 test('disables commands without launch handlers', async () => {
-  defineLaunchableState('billing.paymentFailed', {
-    label: 'Payment failed',
-  })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+    }),
+  ])
 
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
@@ -158,13 +171,15 @@ test('disables commands without launch handlers', async () => {
 })
 
 test('ranks commands with handlers before disabled commands', () => {
-  defineLaunchableState('aaa.disabled', {
-    label: 'AAA disabled',
-  })
-  defineLaunchableState('zzz.enabled', {
-    label: 'ZZZ enabled',
-    launch: vi.fn(),
-  })
+  registerLaunchableState([
+    defineLaunchableState('aaa.disabled', {
+      label: 'AAA disabled',
+    }),
+    defineLaunchableState('zzz.enabled', {
+      label: 'ZZZ enabled',
+      launch: vi.fn(),
+    }),
+  ])
 
   mountStateLauncher({ initiallyOpen: true })
   const commands = [

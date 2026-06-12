@@ -1,7 +1,7 @@
 import { h, render } from 'preact'
 import { act } from 'preact/test-utils'
 
-import { clearCommands, defineLaunchableState } from '../src/index'
+import { clearCommands, defineLaunchableState, registerLaunchableState } from '../src/index'
 import { getCommandRecord } from '../src/registry'
 import { useLaunchableState } from '../src/preact'
 
@@ -73,9 +73,11 @@ test('does not remove a newer handler on unmount', async () => {
   await act(async () => {
     render(h(Launchable, { command, handler: hookHandler }), document.body)
   })
-  defineLaunchableState('billing.paymentFailed', {
-    launch: newerHandler,
-  })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      launch: newerHandler,
+    }),
+  ])
   await act(async () => {
     render(null, document.body)
   })

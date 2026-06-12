@@ -1,4 +1,10 @@
-export { clearCommands, defineLaunchableState, launchCommand, unregisterCommand } from './registry'
+export {
+  clearCommands,
+  defineLaunchableState,
+  launchCommand,
+  registerLaunchableState,
+  unregisterCommand,
+} from './registry'
 export { mountStateLauncher } from './launcher'
 
 /** Options for mounting the isolated in-page launcher UI. */
@@ -25,10 +31,16 @@ export type MountedStateLauncher = {
   toggle(): void
 }
 
-/** Stable handle for a launchable state registered in the process-local registry. */
+/** Stable handle for a launchable application state. */
 export type StateLauncherCommand<Id extends string = string> = {
   /** Stable command id, usually a dotted name such as `billing.paymentFailed`. */
   readonly id: Id
+  /** Human-readable label shown in the launcher panel. */
+  readonly label?: string
+  /** Short explanation shown below the label. */
+  readonly description?: string
+  /** Searchable tags used by the launcher filter. */
+  readonly tags?: readonly string[]
   /** Launch this command through its currently registered handler. */
   launch(): Promise<void>
 }

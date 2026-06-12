@@ -2,6 +2,7 @@ import {
   clearCommands,
   defineLaunchableState,
   launchCommand,
+  registerLaunchableState,
   unregisterCommand,
 } from '../src/index'
 import { getCommandRecord, listCommandRecords, setCommandLaunchHandler } from '../src/registry'
@@ -10,7 +11,29 @@ afterEach(() => {
   clearCommands()
 })
 
-test('reuses command objects and updates their records', async () => {
+test('defines commands without registering them', async () => {
+  const launch = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', {
+    label: 'Payment failed',
+    description: 'Customer has a failed payment method.',
+    tags: ['billing'],
+    launch,
+  })
+
+  expect(command).toMatchObject({
+    id: 'billing.paymentFailed',
+    label: 'Payment failed',
+    description: 'Customer has a failed payment method.',
+    tags: ['billing'],
+  })
+  expect(getCommandRecord(command)).toBeUndefined()
+  expect(listCommandRecords()).toEqual([])
+
+  await command.launch()
+  expect(launch).toHaveBeenCalledOnce()
+})
+
+test('registers commands and merges duplicate ids', async () => {
   const first = defineLaunchableState('billing.paymentFailed', {
     label: 'Payment failed',
     description: 'Customer has a failed payment method.',
@@ -22,12 +45,16 @@ test('reuses command objects and updates their records', async () => {
     launch,
   })
 
-  expect(second).toBe(first)
+  registerLaunchableState([first, second])
+
+  expect(second).not.toBe(first)
   expect(getCommandRecord(first)).toMatchObject({
     id: 'billing.paymentFailed',
     label: 'Payment failed again',
     launch,
   })
+  expect(getCommandRecord(second)).toBe(getCommandRecord(first))
+  expect(listCommandRecords()).toHaveLength(1)
 
   await second.launch()
   expect(launch).toHaveBeenCalledOnce()
@@ -36,6 +63,7 @@ test('reuses command objects and updates their records', async () => {
 test('launches commands by object or id', async () => {
   const launch = vi.fn()
   const command = defineLaunchableState('inbox.manyMessages', { launch })
+  registerLaunchableState([command])
 
   await command.launch()
   await launchCommand(command)
@@ -46,6 +74,7 @@ test('launches commands by object or id', async () => {
 
 test('rejects missing handlers, unknown ids, and invalid command objects', async () => {
   const command = defineLaunchableState('billing.emptyInvoices')
+  registerLaunchableState([command])
 
   await expect(command.launch()).rejects.toThrow('does not have a launch handler')
   await expect(launchCommand('missing.command')).rejects.toThrow('Unknown state launcher command')
@@ -67,22 +96,39 @@ test('propagates launch errors', async () => {
 
 test('unregisters commands by object or id', async () => {
   const first = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
-  defineLaunchableState('inbox.empty', { launch: vi.fn() })
+  const second = defineLaunchableState('inbox.empty', { launch: vi.fn() })
+  registerLaunchableState([first, second])
 
   unregisterCommand(first)
   unregisterCommand('inbox.empty')
 
-  await expect(first.launch()).rejects.toThrow('Invalid state launcher command')
   await expect(launchCommand('inbox.empty')).rejects.toThrow('Unknown state launcher command')
   expect(listCommandRecords()).toEqual([])
 })
 
+test('unregisters every handle for duplicate ids', async () => {
+  const first = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  const second = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  registerLaunchableState([first, second])
+
+  unregisterCommand(first)
+
+  await expect(launchCommand(first)).rejects.toThrow('Invalid state launcher command')
+  await expect(launchCommand(second)).rejects.toThrow('Invalid state launcher command')
+  await expect(launchCommand('billing.paymentFailed')).rejects.toThrow(
+    'Unknown state launcher command',
+  )
+})
+
 test('clears all commands', async () => {
   const command = defineLaunchableState('billing.paymentFailed', { launch: vi.fn() })
+  registerLaunchableState([command])
 
   clearCommands()
 
-  await expect(command.launch()).rejects.toThrow('Invalid state launcher command')
+  await expect(launchCommand('billing.paymentFailed')).rejects.toThrow(
+    'Unknown state launcher command',
+  )
   expect(listCommandRecords()).toEqual([])
 })
 
