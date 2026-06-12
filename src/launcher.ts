@@ -10,7 +10,14 @@ import { LauncherShell, type LauncherProps } from './launcher-ui'
 const defaultTitle = 'Commands'
 const defaultPosition = 'bottom-right'
 
-export function mountLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
+/**
+ * Mount the Shadow DOM-isolated launcher UI.
+ *
+ * The mounted UI subscribes to registry changes and can launch any registered
+ * command with a handler. Unmounting removes only the UI, not the command
+ * registry.
+ */
+export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
   const target = options.target ?? document.body
   const launcherIsolet = createIsolet<LauncherProps>({
     name: 'state-launcher',

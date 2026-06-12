@@ -25,7 +25,13 @@ type CommandRegistry = {
 
 let registry: CommandRegistry = createRegistry()
 
-export function defineCommand<const Id extends string>(
+/**
+ * Define or update a launchable state command.
+ *
+ * Reusing an existing id returns the same command object and updates its
+ * metadata and launch handler. Empty ids throw.
+ */
+export function defineLaunchableState<const Id extends string>(
   id: Id,
   options?: LaunchableStateOptions,
 ): StateLauncherCommand<Id> {
@@ -45,7 +51,7 @@ export function defineCommand<const Id extends string>(
     const newCommand: StateLauncherCommand<Id> = {
       id,
       async launch() {
-        await launchRegisteredCommand(newCommand)
+        await launchCommand(newCommand)
       },
     }
     command = newCommand
@@ -62,9 +68,8 @@ export function defineCommand<const Id extends string>(
   return command
 }
 
-export async function launchRegisteredCommand(
-  commandOrId: StateLauncherCommand | string,
-): Promise<void> {
+/** Launch a registered command by handle or id. */
+export async function launchCommand(commandOrId: StateLauncherCommand | string): Promise<void> {
   const record = resolveCommandRecord(commandOrId)
 
   if (!record.launch) {
@@ -74,7 +79,8 @@ export async function launchRegisteredCommand(
   await record.launch()
 }
 
-export function unregisterRegisteredCommand(commandOrId: StateLauncherCommand | string): void {
+/** Unregister a command by handle or id. Missing string ids are ignored. */
+export function unregisterCommand(commandOrId: StateLauncherCommand | string): void {
   if (typeof commandOrId === 'string') {
     const command = registry.commandsById.get(commandOrId)
 
@@ -98,7 +104,8 @@ export function unregisterRegisteredCommand(commandOrId: StateLauncherCommand | 
   notifyCommandListeners()
 }
 
-export function clearCommandRegistry(): void {
+/** Clear all commands from the process-local registry. Mounted launchers stay subscribed. */
+export function clearCommands(): void {
   const { listeners } = registry
   // Mounted launchers stay subscribed across clearCommands() so their panels can
   // render the emptied registry instead of holding stale command snapshots.

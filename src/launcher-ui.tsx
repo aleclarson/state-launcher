@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
 import {
-  launchRegisteredCommand,
+  launchCommand,
   listCommandRecords,
   subscribeCommandRecords,
   type CommandRecordSnapshot,
@@ -47,7 +47,7 @@ export function LauncherShell({ isOpen, position, setOpen, title }: LauncherProp
 
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
-      await launchRegisteredCommand(command.command)
+      await launchCommand(command.command)
       setLaunchError(undefined)
     } catch (error) {
       setLaunchError(error instanceof Error ? error.message : String(error))
