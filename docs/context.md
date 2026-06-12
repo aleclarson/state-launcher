@@ -35,7 +35,9 @@ export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
 import { registerLaunchableState } from 'state-launcher'
 import { paymentFailed } from './launchable-states'
 
-registerLaunchableState([paymentFailed])
+const unregisterStates = registerLaunchableState([paymentFailed])
+
+import.meta.hot?.dispose(unregisterStates)
 ```
 
 ## Lifecycle and cleanup
@@ -48,6 +50,8 @@ Use:
 - `unregisterCommand(commandOrId)` to remove one command.
 - `clearCommands()` to reset the registry, especially between tests.
 - `mountStateLauncher(...).unmount()` to remove the UI while leaving command records intact.
+
+`registerLaunchableState` returns an idempotent cleanup function. HMR modules should pass that cleanup to `import.meta.hot.dispose()` so commands from the old module instance are removed before the replacement module registers its list. The cleanup only removes that registration call's contribution; newer duplicate-id registrations and handlers attached elsewhere are preserved.
 
 Mounted launchers subscribe to registry changes. Clearing commands while a launcher is mounted updates the panel to show the empty registry.
 

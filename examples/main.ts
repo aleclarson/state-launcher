@@ -39,12 +39,14 @@ const inboxLaunchError = defineLaunchableState('inbox.launchError', {
   },
 })
 
-registerLaunchableState([
+const unregisterCommands = registerLaunchableState([
   billingPaymentFailed,
   billingEmptyInvoices,
   inboxManyMessages,
   inboxLaunchError,
 ])
+
+import.meta.hot?.dispose(unregisterCommands)
 
 mountStateLauncher({
   initiallyOpen: true,

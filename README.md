@@ -53,7 +53,9 @@ export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   },
 })
 
-registerLaunchableState([paymentFailed])
+const unregisterStates = registerLaunchableState([paymentFailed])
+
+import.meta.hot?.dispose(unregisterStates)
 
 const launcher = mountStateLauncher({
   target: document.body,
@@ -70,6 +72,11 @@ launcher.toggle()
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`
 and `mountStateLauncher()` in dev-only code paths when you want production
 bundles to drop launchable-state definitions.
+
+`registerLaunchableState()` returns an idempotent cleanup function. Pass it to
+`import.meta.hot.dispose()` when registering from a Vite HMR module so stale
+commands from the previous module instance are removed before the replacement
+module registers its command list.
 
 ## Preact lifecycle hook
 

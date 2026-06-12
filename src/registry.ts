@@ -10,6 +10,10 @@ type DefinedStateLauncherCommand<Id extends string = string> = StateLauncherComm
   [hasLaunchHandlerKey]?: boolean
 }
 
+type CommandRegistration = {
+  command: StateLauncherCommand
+}
+
 export type CommandRecord = {
   command: StateLauncherCommand
   commands: Set<StateLauncherCommand>
@@ -17,6 +21,9 @@ export type CommandRecord = {
   label?: string
   description?: string
   tags?: string[]
+  registrations: Set<CommandRegistration>
+  retainedCommands: Set<StateLauncherCommand>
+  attachedHandlers: Set<() => void | Promise<void>>
   launchHandlers: Set<() => void | Promise<void>>
 }
 
@@ -74,12 +81,59 @@ export function defineLaunchableState<const Id extends string>(
 }
 
 /** Register commands so they can be discovered by the launcher UI. */
-export function registerLaunchableState(commands: readonly StateLauncherCommand[]): void {
-  for (const command of commands) {
-    registerCommand(command)
+export function registerLaunchableState(commands: readonly StateLauncherCommand[]): () => void {
+  const registrations = commands.map((command) => ({ command }))
+
+  for (const registration of registrations) {
+    registerCommand(registration.command, registration)
   }
 
   notifyCommandListeners()
+
+  return once(() => {
+    for (const registration of registrations) {
+      unregisterRegistration(registration)
+    }
+
+    notifyCommandListeners()
+  })
+}
+
+function unregisterRegistration(registration: CommandRegistration): void {
+  const record = registry.commandRecords.get(registration.command)
+
+  if (!record || !record.registrations.delete(registration)) {
+    return
+  }
+
+  if (
+    !hasRegisteredCommand(record, registration.command) &&
+    !record.retainedCommands.has(registration.command)
+  ) {
+    record.commands.delete(registration.command)
+    registry.commandRecords.delete(registration.command)
+    unregisteredCommands.add(registration.command)
+  }
+
+  refreshCommandRecord(record)
+
+  if (
+    record.registrations.size === 0 &&
+    record.attachedHandlers.size === 0 &&
+    record.retainedCommands.size === 0
+  ) {
+    removeCommandRecord(record)
+  }
+}
+
+function removeCommandRecord(record: CommandRecord): void {
+  registry.commandsById.delete(record.id)
+  clearActiveCommand(record.id)
+
+  for (const command of record.commands) {
+    registry.commandRecords.delete(command)
+    unregisteredCommands.add(command)
+  }
 }
 
 /** Launch a registered command by handle or id. */
@@ -193,7 +247,9 @@ export function setCommandLaunchHandler(
 ): () => void {
   const record = registerCommand(command)
 
-  record.launchHandlers.add(launch)
+  record.retainedCommands.add(command)
+  record.attachedHandlers.add(launch)
+  refreshCommandRecord(record)
   notifyCommandListeners()
 
   if (record.id === activeCommandId) {
@@ -201,13 +257,17 @@ export function setCommandLaunchHandler(
   }
 
   return () => {
-    if (record.launchHandlers.delete(launch)) {
+    if (record.attachedHandlers.delete(launch)) {
+      refreshCommandRecord(record)
       notifyCommandListeners()
     }
   }
 }
 
-function registerCommand(command: StateLauncherCommand): CommandRecord {
+function registerCommand(
+  command: StateLauncherCommand,
+  registration?: CommandRegistration,
+): CommandRecord {
   if (!isDefinedCommand(command)) {
     throw new Error('Invalid state launcher command.')
   }
@@ -218,7 +278,10 @@ function registerCommand(command: StateLauncherCommand): CommandRecord {
 
   if (existingRecord) {
     existingRecord.commands.add(command)
-    applyCommandMetadata(existingRecord, command)
+    if (registration) {
+      existingRecord.registrations.add(registration)
+    }
+    refreshCommandRecord(existingRecord, command)
     return existingRecord
   }
 
@@ -229,7 +292,10 @@ function registerCommand(command: StateLauncherCommand): CommandRecord {
     registry.commandsById.set(command.id, command)
     record.commands.add(command)
     registry.commandRecords.set(command, record)
-    applyCommandMetadata(record, command)
+    if (registration) {
+      record.registrations.add(registration)
+    }
+    refreshCommandRecord(record, command)
     return record
   }
 
@@ -237,11 +303,14 @@ function registerCommand(command: StateLauncherCommand): CommandRecord {
     command,
     commands: new Set([command]),
     id: command.id,
+    registrations: new Set(registration ? [registration] : []),
+    retainedCommands: new Set(),
+    attachedHandlers: new Set(),
     launchHandlers: new Set(),
   }
   registry.commandsById.set(command.id, command)
   registry.commandRecords.set(command, newRecord)
-  applyCommandMetadata(newRecord, command)
+  refreshCommandRecord(newRecord, command)
   return newRecord
 }
 
@@ -279,18 +348,43 @@ function resolveCommandRecord(
   return record
 }
 
-function applyCommandMetadata(record: CommandRecord, command: StateLauncherCommand): void {
+function refreshCommandRecord(record: CommandRecord, fallbackCommand = record.command): void {
+  const command = getLatestRegisteredCommand(record) ?? fallbackCommand
   record.command = command
   record.id = command.id
   record.label = command.label
   record.description = command.description
   record.tags = command.tags ? [...command.tags] : undefined
 
-  const launch = getDefinedCommandLaunchHandler(command)
+  record.launchHandlers = new Set(record.attachedHandlers)
 
-  if (launch) {
-    record.launchHandlers.add(launch)
+  for (const registration of record.registrations) {
+    const launch = getDefinedCommandLaunchHandler(registration.command)
+
+    if (launch) {
+      record.launchHandlers.add(launch)
+    }
   }
+}
+
+function getLatestRegisteredCommand(record: CommandRecord): StateLauncherCommand | undefined {
+  let latestCommand: StateLauncherCommand | undefined
+
+  for (const registration of record.registrations) {
+    latestCommand = registration.command
+  }
+
+  return latestCommand
+}
+
+function hasRegisteredCommand(record: CommandRecord, command: StateLauncherCommand): boolean {
+  for (const registration of record.registrations) {
+    if (registration.command === command) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function getDefinedCommandLaunchHandler(
@@ -322,5 +416,18 @@ function notifyCommandListeners(): void {
 function clearActiveCommand(id: string): void {
   if (activeCommandId === id) {
     activeCommandId = undefined
+  }
+}
+
+function once(callback: () => void): () => void {
+  let called = false
+
+  return () => {
+    if (called) {
+      return
+    }
+
+    called = true
+    callback()
   }
 }

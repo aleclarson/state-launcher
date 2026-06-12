@@ -60,6 +60,52 @@ test('registers commands and merges duplicate ids', async () => {
   expect(launch).toHaveBeenCalledOnce()
 })
 
+test('registration cleanup removes only its own duplicate-id contribution', async () => {
+  const oldLaunch = vi.fn()
+  const nextLaunch = vi.fn()
+  const oldCommand = defineLaunchableState('billing.paymentFailed', {
+    label: 'Old payment failed',
+    launch: oldLaunch,
+  })
+  const nextCommand = defineLaunchableState('billing.paymentFailed', {
+    label: 'Next payment failed',
+    launch: nextLaunch,
+  })
+
+  const cleanupOld = registerLaunchableState([oldCommand])
+  registerLaunchableState([nextCommand])
+  cleanupOld()
+  cleanupOld()
+
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({
+      command: nextCommand,
+      id: 'billing.paymentFailed',
+      label: 'Next payment failed',
+    }),
+  ])
+
+  await expect(oldCommand.launch()).rejects.toThrow('Invalid state launcher command')
+  await nextCommand.launch()
+
+  expect(oldLaunch).not.toHaveBeenCalled()
+  expect(nextLaunch).toHaveBeenCalledOnce()
+})
+
+test('registration cleanup preserves attached handlers', async () => {
+  const definedLaunch = vi.fn()
+  const attachedLaunch = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', { launch: definedLaunch })
+  const cleanup = registerLaunchableState([command])
+  setCommandLaunchHandler(command, attachedLaunch)
+
+  cleanup()
+  await command.launch()
+
+  expect(definedLaunch).not.toHaveBeenCalled()
+  expect(attachedLaunch).toHaveBeenCalledOnce()
+})
+
 test('launches commands by object or id', async () => {
   const launch = vi.fn()
   const command = defineLaunchableState('inbox.manyMessages', { launch })
