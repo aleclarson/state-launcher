@@ -1,10 +1,28 @@
-import {
-  clearCommandRegistry,
-  defineCommand,
-  launchRegisteredCommand,
-  unregisterRegisteredCommand,
-} from './registry'
-import { mountLauncher } from './launcher'
+/** Clear all commands from the process-local registry. Mounted launchers stay subscribed. */
+export { clearCommandRegistry as clearCommands } from './registry'
+
+/**
+ * Define or update a launchable state command.
+ *
+ * Reusing an existing id returns the same command object and updates its
+ * metadata and launch handler. Empty ids throw.
+ */
+export { defineCommand as defineLaunchableState } from './registry'
+
+/** Launch a registered command by handle or id. */
+export { launchRegisteredCommand as launchCommand } from './registry'
+
+/**
+ * Mount the Shadow DOM-isolated launcher UI.
+ *
+ * The mounted UI subscribes to registry changes and can launch any registered
+ * command with a handler. Unmounting removes only the UI, not the command
+ * registry.
+ */
+export { mountLauncher as mountStateLauncher } from './launcher'
+
+/** Unregister a command by handle or id. Missing string ids are ignored. */
+export { unregisterRegisteredCommand as unregisterCommand } from './registry'
 
 /** Options for mounting the isolated in-page launcher UI. */
 export type MountStateLauncherOptions = {
@@ -18,7 +36,7 @@ export type MountStateLauncherOptions = {
   title?: string
 }
 
-/** Controller returned by {@link mountStateLauncher}. */
+/** Controller returned by `mountStateLauncher`. */
 export type MountedStateLauncher = {
   /** Remove the launcher UI. Registered commands are left unchanged. */
   unmount(): void
@@ -48,43 +66,4 @@ export type LaunchableStateOptions = {
   tags?: string[]
   /** Handler that puts the host application into this state. */
   launch?: () => void | Promise<void>
-}
-
-/**
- * Mount the Shadow DOM-isolated launcher UI.
- *
- * The mounted UI subscribes to registry changes and can launch any registered
- * command with a handler. Unmounting removes only the UI, not the command
- * registry.
- */
-export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
-  return mountLauncher(options)
-}
-
-/**
- * Define or update a launchable state command.
- *
- * Reusing an existing id returns the same command object and updates its
- * metadata and launch handler. Empty ids throw.
- */
-export function defineLaunchableState<const Id extends string>(
-  id: Id,
-  options?: LaunchableStateOptions,
-): StateLauncherCommand<Id> {
-  return defineCommand(id, options)
-}
-
-/** Launch a registered command by handle or id. */
-export async function launchCommand(command: StateLauncherCommand | string): Promise<void> {
-  await launchRegisteredCommand(command)
-}
-
-/** Unregister a command by handle or id. Missing string ids are ignored. */
-export function unregisterCommand(command: StateLauncherCommand | string): void {
-  unregisterRegisteredCommand(command)
-}
-
-/** Clear all commands from the process-local registry. Mounted launchers stay subscribed. */
-export function clearCommands(): void {
-  clearCommandRegistry()
 }
