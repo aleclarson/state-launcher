@@ -48,6 +48,8 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
       await launchCommand(command.command)
+      setQuery('')
+      setActiveIndex(0)
       setLaunchError(undefined)
     } catch (error) {
       setLaunchError(error instanceof Error ? error.message : String(error))

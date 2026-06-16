@@ -157,6 +157,51 @@ test('activates the selected command with keyboard navigation', async () => {
   expect(secondLaunch).toHaveBeenCalledOnce()
 })
 
+test('resets the filter input after launching with keyboard', async () => {
+  const launch = vi.fn()
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch,
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'payment'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+  search!.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
+  await nextRender()
+
+  expect(launch).toHaveBeenCalledOnce()
+  expect(search?.value).toBe('')
+})
+
+test('resets the filter input after launching with click', async () => {
+  const launch = vi.fn()
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch,
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'payment'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+  shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')?.click()
+  await nextRender()
+
+  expect(launch).toHaveBeenCalledOnce()
+  expect(search?.value).toBe('')
+})
+
 test('disables commands without launch handlers', async () => {
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
@@ -206,4 +251,5 @@ function getLauncherShadowRoot() {
 async function nextRender() {
   await Promise.resolve()
   await Promise.resolve()
+  await new Promise((resolve) => setTimeout(resolve, 0))
 }
