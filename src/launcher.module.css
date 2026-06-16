@@ -1,6 +1,20 @@
 .stateLauncher {
+  --state-launcher-active-bg: #eef6fb;
+  --state-launcher-border: #d7dce5;
+  --state-launcher-command-border: #e5e8ef;
+  --state-launcher-danger-bg: #fff0f0;
+  --state-launcher-danger-border: #f3c5c5;
+  --state-launcher-danger-fg: #9f1d1d;
+  --state-launcher-focus: #67b7dc;
+  --state-launcher-muted-fg: #5d6b82;
+  --state-launcher-panel-bg: #fff;
+  --state-launcher-shadow: rgb(15 23 42 / 20%);
+  --state-launcher-subtle-fg: #7a8799;
+  --state-launcher-text: #162033;
+
   box-sizing: border-box;
-  color: #162033;
+  color: var(--state-launcher-text);
+  color-scheme: light;
   font-family:
     Inter,
     ui-sans-serif,
@@ -57,11 +71,11 @@
   }
 
   .panel {
-    background: #fff;
-    border: 1px solid #d7dce5;
+    background: var(--state-launcher-panel-bg);
+    border: 1px solid var(--state-launcher-border);
     border-radius: 8px;
     bottom: 0;
-    box-shadow: 0 18px 48px rgb(15 23 42 / 20%);
+    box-shadow: 0 18px 48px var(--state-launcher-shadow);
     min-width: 320px;
     overflow: hidden;
     position: absolute;
@@ -70,7 +84,7 @@
   }
 
   .header {
-    border-bottom: 1px solid #e5e8ef;
+    border-bottom: 1px solid var(--state-launcher-command-border);
     padding: 12px 14px;
 
     h2 {
@@ -81,14 +95,15 @@
   }
 
   .empty {
-    color: #5d6b82;
+    color: var(--state-launcher-muted-fg);
     padding: 14px;
   }
 
   .searchInput {
+    background: var(--state-launcher-panel-bg);
     border: 0;
-    border-bottom: 1px solid #e5e8ef;
-    color: #162033;
+    border-bottom: 1px solid var(--state-launcher-command-border);
+    color: var(--state-launcher-text);
     display: block;
     font: inherit;
     outline: none;
@@ -96,14 +111,14 @@
     width: 100%;
 
     &:focus {
-      box-shadow: inset 0 0 0 2px #67b7dc;
+      box-shadow: inset 0 0 0 2px var(--state-launcher-focus);
     }
   }
 
   .error {
-    background: #fff0f0;
-    border-bottom: 1px solid #f3c5c5;
-    color: #9f1d1d;
+    background: var(--state-launcher-danger-bg);
+    border-bottom: 1px solid var(--state-launcher-danger-border);
+    color: var(--state-launcher-danger-fg);
     padding: 10px 14px;
   }
 
@@ -118,7 +133,7 @@
   }
 
   .groupTitle {
-    color: #5d6b82;
+    color: var(--state-launcher-muted-fg);
     font-size: 12px;
     font-weight: 750;
     letter-spacing: 0;
@@ -135,7 +150,7 @@
   .command {
     background: transparent;
     border: 0;
-    color: #162033;
+    color: var(--state-launcher-text);
     cursor: pointer;
     display: grid;
     font: inherit;
@@ -146,11 +161,11 @@
 
     &:hover,
     &.active {
-      background: #eef6fb;
+      background: var(--state-launcher-active-bg);
     }
 
     &.disabled {
-      color: #7a8799;
+      color: var(--state-launcher-subtle-fg);
       cursor: not-allowed;
       opacity: 0.62;
 
@@ -160,7 +175,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid #67b7dc;
+      outline: 2px solid var(--state-launcher-focus);
       outline-offset: -2px;
     }
   }
@@ -170,13 +185,32 @@
   }
 
   .commandDescription {
-    color: #5d6b82;
+    color: var(--state-launcher-muted-fg);
     font-size: 12px;
   }
 
   .commandId {
-    color: #7a8799;
+    color: var(--state-launcher-subtle-fg);
     font-size: 11px;
     overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .stateLauncher {
+    --state-launcher-active-bg: #173449;
+    --state-launcher-border: #39475a;
+    --state-launcher-command-border: #2d394a;
+    --state-launcher-danger-bg: #3d1f24;
+    --state-launcher-danger-border: #6f3036;
+    --state-launcher-danger-fg: #ffb3ba;
+    --state-launcher-focus: #79c6ef;
+    --state-launcher-muted-fg: #a8b3c4;
+    --state-launcher-panel-bg: #111827;
+    --state-launcher-shadow: rgb(0 0 0 / 42%);
+    --state-launcher-subtle-fg: #8b98aa;
+    --state-launcher-text: #f3f6fb;
+
+    color-scheme: dark;
   }
 }
