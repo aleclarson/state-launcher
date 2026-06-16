@@ -1,0 +1,255 @@
+:root {
+  color: #172033;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.5;
+  background: #edf0f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  background: #fff;
+  border: 1px solid #c9d0dc;
+  border-radius: 6px;
+  color: #172033;
+  cursor: pointer;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+button:hover {
+  background: #f5f8fb;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #2b8bbd;
+  outline-offset: 2px;
+}
+
+.playground {
+  min-height: 100vh;
+  padding: 32px;
+}
+
+.workspace {
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.workspaceHeader {
+  align-items: flex-end;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  color: #526176;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.1;
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: 18px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.statusPill {
+  background: #172033;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.surface {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.controls,
+.preview,
+.history {
+  background: #fff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgb(38 50 70 / 8%);
+  padding: 18px;
+}
+
+.controls {
+  display: grid;
+  gap: 18px;
+  grid-column: 1 / -1;
+}
+
+.controlGroup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.controlLabel {
+  color: #526176;
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 4px;
+  min-width: 58px;
+}
+
+.mountToggle {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.segmented button {
+  text-transform: capitalize;
+}
+
+.segmented .selected {
+  background: #dceff8;
+  border-color: #77b7d4;
+}
+
+.preview {
+  display: grid;
+  gap: 28px;
+  min-height: 390px;
+}
+
+.preview p:not(.eyebrow) {
+  color: #526176;
+  margin-bottom: 0;
+  max-width: 58ch;
+}
+
+.mockApp {
+  align-self: end;
+  border: 1px solid #c8d2df;
+  border-radius: 8px;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.mockNav {
+  background: #172033;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+}
+
+.mockNav span {
+  background: #9fb0c3;
+  border-radius: 999px;
+  display: block;
+  height: 8px;
+  width: 42px;
+}
+
+.mockContent {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.mockTitle {
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.mockLine {
+  background: #dce4ee;
+  border-radius: 4px;
+  height: 14px;
+  width: 72%;
+}
+
+.mockLine.wide {
+  width: 92%;
+}
+
+.mockLine.short {
+  width: 48%;
+}
+
+.history {
+  min-height: 390px;
+}
+
+.history p,
+.history li {
+  color: #526176;
+}
+
+.history ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+@media (max-width: 760px) {
+  .playground {
+    padding: 18px;
+  }
+
+  .workspaceHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .surface {
+    grid-template-columns: 1fr;
+  }
+
+  .controlLabel {
+    min-width: 100%;
+  }
+}

@@ -32,6 +32,7 @@
     "typecheck": "tsc --noEmit && tsc -p test --noEmit",
     "test": "vitest",
     "demo": "vite examples --host 127.0.0.1",
+    "playground": "vite playground --host 127.0.0.1",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

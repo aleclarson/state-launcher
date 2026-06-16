@@ -133,3 +133,9 @@ Run the local demo with:
 ```sh
 pnpm demo
 ```
+
+Run the launcher UI playground with:
+
+```sh
+pnpm playground
+```
