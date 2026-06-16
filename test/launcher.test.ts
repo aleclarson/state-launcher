@@ -5,9 +5,19 @@ import {
   registerLaunchableState,
 } from '../src/index'
 
+const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
+
+beforeEach(() => {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: createTestStorage(),
+  })
+})
+
 afterEach(() => {
   vi.restoreAllMocks()
   document.body.replaceChildren()
+  window.localStorage.clear()
   clearCommands()
 })
 
@@ -131,6 +141,100 @@ test('filters commands with fuzzysort2', async () => {
   expect(shadowRoot?.textContent).not.toContain('Many messages')
 })
 
+test('boosts states launched in the past 24 hours in search results', async () => {
+  const now = Date.now()
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'billing.paymentFailed': [now - 1000, now - 2000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('billing.emptyInvoices', {
+      label: 'Empty invoices',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'billing'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
+})
+
+test('ignores launch counts older than 24 hours', async () => {
+  const now = Date.now()
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'billing.emptyInvoices': [now - 25 * 60 * 60 * 1000, now - 26 * 60 * 60 * 1000],
+      'billing.paymentFailed': [now - 1000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('billing.emptyInvoices', {
+      label: 'Empty invoices',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'billing'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
+  expect(JSON.parse(window.localStorage.getItem(launchHistoryStorageKey)!)).toEqual({
+    'billing.paymentFailed': [now - 1000],
+  })
+})
+
+test('remembers launched states for later launcher mounts', async () => {
+  const paymentLaunch = vi.fn()
+  registerLaunchableState([
+    defineLaunchableState('billing.emptyInvoices', {
+      label: 'Empty invoices',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: paymentLaunch,
+    }),
+  ])
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  getCommandButton('Payment failed')?.click()
+  await nextRender()
+
+  expect(paymentLaunch).toHaveBeenCalledOnce()
+
+  launcher.unmount()
+  mountStateLauncher({ initiallyOpen: true })
+  const secondSearch =
+    getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  secondSearch!.value = 'billing'
+  secondSearch!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
+})
+
 test('activates the selected command with keyboard navigation', async () => {
   const firstLaunch = vi.fn()
   const secondLaunch = vi.fn()
@@ -246,6 +350,43 @@ test('ranks commands with handlers before disabled commands', () => {
 
 function getLauncherShadowRoot() {
   return document.querySelector<HTMLElement>('[data-state-launcher-host="true"]')?.shadowRoot
+}
+
+function getCommandLabels() {
+  return [...getLauncherShadowRoot()!.querySelectorAll('[role="option"]')].map(
+    (command) => command.querySelector('span')?.textContent,
+  )
+}
+
+function getCommandButton(label: string) {
+  return [...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('[role="option"]')].find(
+    (command) => command.querySelector('span')?.textContent === label,
+  )
+}
+
+function createTestStorage(): Storage {
+  const values = new Map<string, string>()
+
+  return {
+    get length() {
+      return values.size
+    },
+    clear() {
+      values.clear()
+    },
+    getItem(key) {
+      return values.get(key) ?? null
+    },
+    key(index) {
+      return [...values.keys()][index] ?? null
+    },
+    removeItem(key) {
+      values.delete(key)
+    },
+    setItem(key, value) {
+      values.set(key, value)
+    },
+  }
 }
 
 async function nextRender() {

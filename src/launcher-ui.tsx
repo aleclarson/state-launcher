@@ -13,19 +13,29 @@ import {
   type CommandRecordSnapshot,
 } from './registry'
 
+const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
+const launchHistoryWindowMs = 24 * 60 * 60 * 1000
+
 export type LauncherProps = {
   isOpen: Signal<boolean>
   position: NonNullable<MountStateLauncherOptions['position']>
   title: string
 }
 
+type LaunchCounts = ReadonlyMap<string, number>
+type LaunchHistory = Record<string, number[]>
+
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [commands, setCommands] = useState(() => listCommandRecords())
+  const [launchCounts, setLaunchCounts] = useState(() => readLaunchCounts(Date.now()))
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const [launchError, setLaunchError] = useState<string>()
-  const filteredCommands = useMemo(() => filterCommands(commands, query), [commands, query])
+  const filteredCommands = useMemo(
+    () => filterCommands(commands, query, launchCounts),
+    [commands, launchCounts, query],
+  )
   const groupedCommands = useMemo(() => groupCommands(filteredCommands), [filteredCommands])
   const enabledCommands = useMemo(
     () => filteredCommands.filter((command) => command.hasLaunchHandler),
@@ -40,6 +50,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     () =>
       subscribeCommandRecords(() => {
         setCommands(listCommandRecords())
+        setLaunchCounts(readLaunchCounts(Date.now()))
         setActiveIndex(0)
       }),
     [],
@@ -48,6 +59,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
       await launchCommand(command.command)
+      setLaunchCounts(recordLaunch(command.id, Date.now()))
       setQuery('')
       setActiveIndex(0)
       setLaunchError(undefined)
@@ -58,6 +70,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   function onSearchInput(event: Event) {
     const input = event.currentTarget as HTMLInputElement
+    setLaunchCounts(readLaunchCounts(Date.now()))
     setQuery(input.value)
     setActiveIndex(0)
     setLaunchError(undefined)
@@ -163,11 +176,15 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   )
 }
 
-function filterCommands(commands: CommandRecordSnapshot[], query: string): CommandRecordSnapshot[] {
+function filterCommands(
+  commands: CommandRecordSnapshot[],
+  query: string,
+  launchCounts: LaunchCounts,
+): CommandRecordSnapshot[] {
   const trimmedQuery = query.trim()
 
   if (!trimmedQuery) {
-    return rankCommands(commands, true)
+    return rankCommands(commands, launchCounts, true)
   }
 
   return rankCommands(
@@ -177,11 +194,13 @@ function filterCommands(commands: CommandRecordSnapshot[], query: string): Comma
       { key: 'description', extract: (command) => command.description },
       { key: 'tags', extract: (command) => command.tags.join(' ') },
     ]).items.map((item) => item.value),
+    launchCounts,
   )
 }
 
 function rankCommands(
   commands: CommandRecordSnapshot[],
+  launchCounts: LaunchCounts,
   sortWithinLaunchability = false,
 ): CommandRecordSnapshot[] {
   return [...commands].sort((left, right) => {
@@ -189,8 +208,99 @@ function rankCommands(
       return left.hasLaunchHandler ? -1 : 1
     }
 
+    const launchCountDelta = (launchCounts.get(right.id) ?? 0) - (launchCounts.get(left.id) ?? 0)
+
+    if (launchCountDelta !== 0) {
+      return launchCountDelta
+    }
+
     return sortWithinLaunchability ? left.id.localeCompare(right.id) : 0
   })
+}
+
+function recordLaunch(commandId: string, now: number): LaunchCounts {
+  const history = readLaunchHistory(now)
+  const timestamps = history[commandId] ?? []
+  history[commandId] = [...timestamps, now]
+
+  writeLaunchHistory(history)
+
+  return createLaunchCounts(history)
+}
+
+function readLaunchCounts(now: number): LaunchCounts {
+  return createLaunchCounts(readLaunchHistory(now))
+}
+
+function readLaunchHistory(now: number): LaunchHistory {
+  const minTimestamp = now - launchHistoryWindowMs
+  const storage = getLaunchHistoryStorage()
+  let storedHistory: unknown
+
+  if (!storage) {
+    return createLaunchHistory()
+  }
+
+  try {
+    storedHistory = JSON.parse(storage.getItem(launchHistoryStorageKey) ?? '{}')
+  } catch {
+    return createLaunchHistory()
+  }
+
+  if (!storedHistory || typeof storedHistory !== 'object' || Array.isArray(storedHistory)) {
+    return createLaunchHistory()
+  }
+
+  const history = createLaunchHistory()
+
+  for (const [id, timestamps] of Object.entries(storedHistory)) {
+    if (!Array.isArray(timestamps)) {
+      continue
+    }
+
+    const recentTimestamps = timestamps.filter(
+      (timestamp): timestamp is number =>
+        typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= minTimestamp,
+    )
+
+    if (recentTimestamps.length > 0) {
+      history[id] = recentTimestamps
+    }
+  }
+
+  writeLaunchHistory(history)
+
+  return history
+}
+
+function createLaunchHistory(): LaunchHistory {
+  return Object.create(null) as LaunchHistory
+}
+
+function writeLaunchHistory(history: LaunchHistory): void {
+  const storage = getLaunchHistoryStorage()
+
+  if (!storage) {
+    return
+  }
+
+  try {
+    storage.setItem(launchHistoryStorageKey, JSON.stringify(history))
+  } catch {
+    // Launch frequency is only a ranking hint; storage failures should not block launches.
+  }
+}
+
+function getLaunchHistoryStorage(): Storage | undefined {
+  try {
+    return window.localStorage
+  } catch {
+    return undefined
+  }
+}
+
+function createLaunchCounts(history: LaunchHistory): LaunchCounts {
+  return new Map(Object.entries(history).map(([id, timestamps]) => [id, timestamps.length]))
 }
 
 function groupCommands(commands: CommandRecordSnapshot[]) {
