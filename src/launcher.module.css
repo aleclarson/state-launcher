@@ -52,31 +52,7 @@
   &.top-right {
     .panel {
       bottom: auto;
-      top: calc(100% + 10px);
-    }
-  }
-
-  .button {
-    align-items: center;
-    background: #172033;
-    border: 1px solid #2d3a54;
-    border-radius: 8px;
-    box-shadow: 0 12px 32px rgb(15 23 42 / 22%);
-    color: #fff;
-    cursor: pointer;
-    display: inline-flex;
-    font: inherit;
-    font-weight: 650;
-    min-height: 40px;
-    padding: 0 14px;
-
-    &:hover {
-      background: #22304a;
-    }
-
-    &:focus-visible {
-      outline: 3px solid #67b7dc;
-      outline-offset: 2px;
+      top: 0;
     }
   }
 
@@ -84,7 +60,7 @@
     background: #fff;
     border: 1px solid #d7dce5;
     border-radius: 8px;
-    bottom: calc(100% + 10px);
+    bottom: 0;
     box-shadow: 0 18px 48px rgb(15 23 42 / 20%);
     min-width: 320px;
     overflow: hidden;

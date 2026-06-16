@@ -53,19 +53,6 @@ test('controls open, close, and toggle state', () => {
   launcher.unmount()
 })
 
-test('toggles from the floating button', () => {
-  mountStateLauncher()
-  const shadowRoot = document.querySelector<HTMLElement>(
-    '[data-state-launcher-host="true"]',
-  )?.shadowRoot
-  const button = shadowRoot?.querySelector<HTMLButtonElement>('button')
-
-  button?.click()
-
-  expect(button?.getAttribute('aria-expanded')).toBe('true')
-  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
-})
-
 test('unmount removes launcher dom and is idempotent', () => {
   const launcher = mountStateLauncher()
 

@@ -37,7 +37,7 @@ pnpm add state-launcher
 
 This example proves the core workflow: define stable command handles, register the
 ones that should appear in the launcher, mount the isolated panel, and still
-launch the same command without the panel.
+launch the same command without opening the panel.
 
 ```ts
 import { defineLaunchableState, mountStateLauncher, registerLaunchableState } from 'state-launcher'
@@ -64,9 +64,16 @@ const launcher = mountStateLauncher({
   title: 'App states',
 })
 
+document.querySelector('#open-state-launcher')?.addEventListener('click', () => {
+  launcher.toggle()
+})
+
 await paymentFailed.launch()
-launcher.toggle()
 ```
+
+`mountStateLauncher()` does not render its own persistent trigger. Use the
+returned controller to wire the launcher to an app-owned button, menu item,
+keyboard shortcut, or test helper.
 
 `defineLaunchableState()` is annotated as side-effect free, and the package marks
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`

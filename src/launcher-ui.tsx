@@ -15,12 +15,11 @@ import {
 
 export type LauncherProps = {
   isOpen: Signal<boolean>
-  setOpen(isOpen: boolean): void
   position: NonNullable<MountStateLauncherOptions['position']>
   title: string
 }
 
-export function LauncherShell({ isOpen, position, setOpen, title }: LauncherProps) {
+export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -86,15 +85,6 @@ export function LauncherShell({ isOpen, position, setOpen, title }: LauncherProp
       data-position={position}
       data-state-launcher=""
     >
-      <button
-        aria-expanded={isOpen.value}
-        aria-label={isOpen.value ? 'Close state launcher' : 'Open state launcher'}
-        class={styles.button}
-        onClick={() => setOpen(!isOpen.value)}
-        type="button"
-      >
-        Commands
-      </button>
       {isOpen.value ? (
         <section aria-label={title} class={styles.panel} role="dialog">
           <header class={styles.header}>

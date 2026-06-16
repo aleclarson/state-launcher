@@ -11,7 +11,7 @@ const defaultTitle = 'Commands'
 const defaultPosition = 'bottom-right'
 
 /**
- * Mount the Shadow DOM-isolated launcher UI.
+ * Mount the Shadow DOM-isolated launcher panel UI.
  *
  * The mounted UI subscribes to registry changes and can launch any registered
  * command with a handler. Unmounting removes only the UI, not the command

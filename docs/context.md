@@ -94,7 +94,7 @@ The hook attaches one handler on mount/update, registers the command for launche
 
 ## Launcher UI behavior
 
-`mountStateLauncher` mounts a Shadow DOM-isolated floating launcher. It supports:
+`mountStateLauncher` mounts a Shadow DOM-isolated floating launcher panel. It supports:
 
 - `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions
 - custom panel title
@@ -104,3 +104,5 @@ The hook attaches one handler on mount/update, registers the command for launche
 - error display for failed launches
 
 The returned controller can `open`, `close`, `toggle`, and `unmount` the launcher.
+The package does not render a persistent trigger; applications wire their own
+button, menu item, keyboard shortcut, or test helper to the returned controller.
