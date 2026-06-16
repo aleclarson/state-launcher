@@ -86,6 +86,17 @@ const commands = [
       throw new Error('Playground command failed.')
     },
   }),
+  defineLaunchableState('account.suspended', {
+    label: 'Suspended account',
+    description: 'Account access is paused until an admin reviews it.',
+    tags: ['account', 'review'],
+    launch() {
+      emitScenario({
+        name: 'Suspended account',
+        description: 'Account surface shows suspended access and an admin review notice.',
+      })
+    },
+  }),
   defineLaunchableState('account.readonly', {
     label: 'Read-only account',
     description: 'Registered without a handler to verify disabled rendering.',
