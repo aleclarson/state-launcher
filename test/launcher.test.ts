@@ -6,6 +6,7 @@ import {
 } from '../src/index'
 
 afterEach(() => {
+  vi.restoreAllMocks()
   document.body.replaceChildren()
   clearCommands()
 })
@@ -51,6 +52,25 @@ test('controls open, close, and toggle state', () => {
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
 
   launcher.unmount()
+})
+
+test('focuses the filter input when initially open', async () => {
+  const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  expect(focus).toHaveBeenCalledOnce()
+})
+
+test('focuses the filter input when opened with controller', async () => {
+  const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
+  const launcher = mountStateLauncher()
+
+  launcher.open()
+  await nextRender()
+
+  expect(focus).toHaveBeenCalledOnce()
 })
 
 test('unmount removes launcher dom and is idempotent', () => {

@@ -2,7 +2,7 @@
 
 import type { Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
@@ -20,6 +20,7 @@ export type LauncherProps = {
 }
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -79,6 +80,11 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     }
   }
 
+  const focusSearchInput = useCallback((input: HTMLInputElement | null) => {
+    searchInputRef.current = input
+    input?.focus()
+  }, [])
+
   return (
     <div
       class={`${styles.stateLauncher} ${styles[position]}`}
@@ -96,6 +102,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             onInput={onSearchInput}
             onKeyDown={onSearchKeyDown}
             placeholder="Filter commands"
+            ref={focusSearchInput}
             type="search"
             value={query}
           />
