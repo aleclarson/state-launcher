@@ -25,33 +25,13 @@
     sans-serif;
   font-size: 14px;
   line-height: 1.4;
-  position: fixed;
+  position: relative;
 
   &,
   *,
   *::before,
   *::after {
     box-sizing: border-box;
-  }
-
-  &.bottom-right {
-    bottom: 24px;
-    right: 24px;
-  }
-
-  &.bottom-left {
-    bottom: 24px;
-    left: 24px;
-  }
-
-  &.top-right {
-    right: 24px;
-    top: 24px;
-  }
-
-  &.top-left {
-    left: 24px;
-    top: 24px;
   }
 
   &.bottom-left,

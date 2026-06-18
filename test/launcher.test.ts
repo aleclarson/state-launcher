@@ -36,6 +36,10 @@ test('mounts the launcher into a shadow dom host', () => {
 
   expect(host).toBeTruthy()
   expect(shadowRoot).toBeTruthy()
+  expect(host?.style.position).toBe('fixed')
+  expect(host?.style.zIndex).toBe('2147483647')
+  expect(host?.style.top).toBe('24px')
+  expect(host?.style.left).toBe('24px')
   expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
     'top-left',
   )

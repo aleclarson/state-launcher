@@ -19,6 +19,7 @@ const defaultPosition = 'bottom-right'
  */
 export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
   const target = options.target ?? document.body
+  const position = options.position ?? defaultPosition
   const launcherIsolet = createIsolet<LauncherProps>({
     name: 'state-launcher',
     css: launcherCss,
@@ -26,6 +27,7 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
     hostAttributes: {
       'data-state-launcher-host': 'true',
     },
+    hostStyles: getHostStyles(position),
     zIndex: 2147483647,
   })
   const isOpen = signal(Boolean(options.initiallyOpen))
@@ -41,7 +43,7 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       // an explicit update to keep the Shadow DOM render in sync.
       launcherIsolet.update(props)
     },
-    position: options.position ?? defaultPosition,
+    position,
     title: options.title ?? defaultTitle,
   }
   let mounted = true
@@ -66,5 +68,36 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       mounted = false
       launcherIsolet.unmount()
     },
+  }
+}
+
+function getHostStyles(
+  position: NonNullable<MountStateLauncherOptions['position']>,
+): Partial<CSSStyleDeclaration> {
+  switch (position) {
+    case 'bottom-left':
+      return {
+        bottom: '24px',
+        left: '24px',
+        position: 'fixed',
+      }
+    case 'top-left':
+      return {
+        left: '24px',
+        position: 'fixed',
+        top: '24px',
+      }
+    case 'top-right':
+      return {
+        position: 'fixed',
+        right: '24px',
+        top: '24px',
+      }
+    case 'bottom-right':
+      return {
+        bottom: '24px',
+        position: 'fixed',
+        right: '24px',
+      }
   }
 }
