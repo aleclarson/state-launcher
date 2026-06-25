@@ -4,7 +4,7 @@ import { useSearchNavigation } from '@goddard-ai/ui-primitives'
 import { useSignal, type Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
 import type { TargetedFocusEvent } from 'preact'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
@@ -34,10 +34,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const filteredCommands = useSignal(filterCommands(commands, '', launchCounts))
   const currentFilteredCommands = filteredCommands.value
-  const groupedCommands = useMemo(
-    () => groupCommands(currentFilteredCommands),
-    [currentFilteredCommands],
-  )
+  const groupedCommands = groupCommands(currentFilteredCommands)
 
   function updateFilteredCommands(
     nextCommands = commands,
@@ -81,33 +78,28 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     },
   })
 
-  const focusSearchInput = useCallback(
-    (input: HTMLInputElement | null) => {
-      searchInputRef.current = input
-      const cleanup = searchNavigation.inputRef(input)
-      input?.focus()
+  function focusSearchInput(input: HTMLInputElement | null) {
+    searchInputRef.current = input
+    const cleanup = searchNavigation.inputRef(input)
+    input?.focus()
 
-      return () => {
-        if (searchInputRef.current === input) {
-          searchInputRef.current = null
-        }
-        cleanup?.()
+    return () => {
+      if (searchInputRef.current === input) {
+        searchInputRef.current = null
       }
-    },
-    [searchNavigation],
-  )
-  const hideWhenFocusLeaves = useCallback(
-    (event: TargetedFocusEvent<HTMLElement>) => {
-      const nextFocusedElement = event.relatedTarget
+      cleanup?.()
+    }
+  }
 
-      if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) {
-        return
-      }
+  function hideWhenFocusLeaves(event: TargetedFocusEvent<HTMLElement>) {
+    const nextFocusedElement = event.relatedTarget
 
-      isOpen.value = false
-    },
-    [isOpen],
-  )
+    if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) {
+      return
+    }
+
+    isOpen.value = false
+  }
 
   useEffect(
     () =>
