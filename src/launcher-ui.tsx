@@ -1,10 +1,10 @@
 /// <reference path="./css.d.ts" />
 
 import { useSearchNavigation } from '@goddard-ai/ui-primitives'
-import type { Signal } from '@preact/signals'
+import { useSignal, type Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
 import type { TargetedFocusEvent } from 'preact'
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
@@ -30,19 +30,32 @@ type LaunchHistory = Record<string, number[]>
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchCounts, setLaunchCounts] = useState(() => readLaunchCounts(Date.now()))
-  const [query, setQuery] = useState('')
   const [launchError, setLaunchError] = useState<string>()
-  const filteredCommands = useMemo(
-    () => filterCommands(commands, query, launchCounts),
-    [commands, launchCounts, query],
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const filteredCommands = useSignal(filterCommands(commands, '', launchCounts))
+  const currentFilteredCommands = filteredCommands.value
+  const groupedCommands = useMemo(
+    () => groupCommands(currentFilteredCommands),
+    [currentFilteredCommands],
   )
-  const groupedCommands = useMemo(() => groupCommands(filteredCommands), [filteredCommands])
+
+  function updateFilteredCommands(
+    nextCommands = commands,
+    nextLaunchCounts = launchCounts,
+    query = searchInputRef.current?.value ?? '',
+  ) {
+    filteredCommands.value = filterCommands(nextCommands, query, nextLaunchCounts)
+  }
 
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
       await launchCommand(command.command)
-      setLaunchCounts(recordLaunch(command.id, Date.now()))
-      setQuery('')
+      const nextLaunchCounts = recordLaunch(command.id, Date.now())
+      setLaunchCounts(nextLaunchCounts)
+      if (searchInputRef.current) {
+        searchInputRef.current.value = ''
+      }
+      updateFilteredCommands(commands, nextLaunchCounts, '')
       searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
     } catch (error) {
@@ -52,27 +65,34 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   const searchNavigation = useSearchNavigation({
     activeAttribute: 'aria-selected',
-    count: () => filteredCommands.length,
+    count: () => filteredCommands.value.length,
     onActivate(index) {
-      const command = filteredCommands[index]
+      const command = filteredCommands.value[index]
 
       if (command?.hasLaunchHandler) {
         void activateCommand(command)
       }
     },
     onQueryChange(nextQuery) {
-      setLaunchCounts(readLaunchCounts(Date.now()))
-      setQuery(nextQuery)
+      const nextLaunchCounts = readLaunchCounts(Date.now())
+      setLaunchCounts(nextLaunchCounts)
+      updateFilteredCommands(commands, nextLaunchCounts, nextQuery)
       setLaunchError(undefined)
     },
   })
 
   const focusSearchInput = useCallback(
     (input: HTMLInputElement | null) => {
+      searchInputRef.current = input
       const cleanup = searchNavigation.inputRef(input)
       input?.focus()
 
-      return cleanup
+      return () => {
+        if (searchInputRef.current === input) {
+          searchInputRef.current = null
+        }
+        cleanup?.()
+      }
     },
     [searchNavigation],
   )
@@ -92,8 +112,11 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   useEffect(
     () =>
       subscribeCommandRecords(() => {
-        setCommands(listCommandRecords())
-        setLaunchCounts(readLaunchCounts(Date.now()))
+        const nextCommands = listCommandRecords()
+        const nextLaunchCounts = readLaunchCounts(Date.now())
+        setCommands(nextCommands)
+        setLaunchCounts(nextLaunchCounts)
+        updateFilteredCommands(nextCommands, nextLaunchCounts)
         searchNavigation.resetActiveIndex()
       }),
     [searchNavigation],
@@ -121,14 +144,13 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             placeholder="Filter commands"
             ref={focusSearchInput}
             type="search"
-            value={query}
           />
           {launchError ? (
             <div class={styles.error} role="alert">
               {launchError}
             </div>
           ) : null}
-          {filteredCommands.length === 0 ? (
+          {currentFilteredCommands.length === 0 ? (
             <div class={styles.empty}>
               {commands.length === 0 ? 'No commands registered.' : 'No commands match.'}
             </div>
