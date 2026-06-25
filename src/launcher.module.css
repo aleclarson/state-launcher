@@ -136,7 +136,7 @@
     width: 100%;
 
     &:hover,
-    &.active {
+    &[aria-selected='true'] {
       background: var(--state-launcher-active-bg);
     }
 

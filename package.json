@@ -36,6 +36,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "@goddard-ai/ui-primitives": "^0.1.2",
     "@preact/signals": "^2.9.1",
     "fuzzysort2": "^0.1.1",
     "isolet-js": "^0.0.7"

@@ -1,8 +1,9 @@
 /// <reference path="./css.d.ts" />
 
 import type { Signal } from '@preact/signals'
+import { useSearchNavigation } from '@goddard-ai/ui-primitives'
 import { searchFields } from 'fuzzysort2'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
@@ -26,79 +27,64 @@ type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
-  const searchInputRef = useRef<HTMLInputElement>(null)
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchCounts, setLaunchCounts] = useState(() => readLaunchCounts(Date.now()))
   const [query, setQuery] = useState('')
-  const [activeIndex, setActiveIndex] = useState(0)
   const [launchError, setLaunchError] = useState<string>()
   const filteredCommands = useMemo(
     () => filterCommands(commands, query, launchCounts),
     [commands, launchCounts, query],
   )
   const groupedCommands = useMemo(() => groupCommands(filteredCommands), [filteredCommands])
-  const enabledCommands = useMemo(
-    () => filteredCommands.filter((command) => command.hasLaunchHandler),
-    [filteredCommands],
-  )
-  const selectedCommand =
-    enabledCommands.length === 0
-      ? undefined
-      : enabledCommands[Math.min(activeIndex, enabledCommands.length - 1)]
-
-  useEffect(
-    () =>
-      subscribeCommandRecords(() => {
-        setCommands(listCommandRecords())
-        setLaunchCounts(readLaunchCounts(Date.now()))
-        setActiveIndex(0)
-      }),
-    [],
-  )
 
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
       await launchCommand(command.command)
       setLaunchCounts(recordLaunch(command.id, Date.now()))
       setQuery('')
-      setActiveIndex(0)
+      searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
     } catch (error) {
       setLaunchError(error instanceof Error ? error.message : String(error))
     }
   }
 
-  function onSearchInput(event: Event) {
-    const input = event.currentTarget as HTMLInputElement
-    setLaunchCounts(readLaunchCounts(Date.now()))
-    setQuery(input.value)
-    setActiveIndex(0)
-    setLaunchError(undefined)
-  }
+  const searchNavigation = useSearchNavigation({
+    activeAttribute: 'aria-selected',
+    count: () => filteredCommands.length,
+    onActivate(index) {
+      const command = filteredCommands[index]
 
-  function onSearchKeyDown(event: KeyboardEvent) {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setActiveIndex((index) => wrapIndex(index + 1, enabledCommands.length))
-      return
-    }
+      if (command?.hasLaunchHandler) {
+        void activateCommand(command)
+      }
+    },
+    onQueryChange(nextQuery) {
+      setLaunchCounts(readLaunchCounts(Date.now()))
+      setQuery(nextQuery)
+      setLaunchError(undefined)
+    },
+  })
 
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setActiveIndex((index) => wrapIndex(index - 1, enabledCommands.length))
-      return
-    }
+  const focusSearchInput = useCallback(
+    (input: HTMLInputElement | null) => {
+      const cleanup = searchNavigation.inputRef(input)
+      input?.focus()
 
-    if (event.key === 'Enter' && selectedCommand) {
-      event.preventDefault()
-      void activateCommand(selectedCommand)
-    }
-  }
+      return cleanup
+    },
+    [searchNavigation],
+  )
 
-  const focusSearchInput = useCallback((input: HTMLInputElement | null) => {
-    searchInputRef.current = input
-    input?.focus()
-  }, [])
+  useEffect(
+    () =>
+      subscribeCommandRecords(() => {
+        setCommands(listCommandRecords())
+        setLaunchCounts(readLaunchCounts(Date.now()))
+        searchNavigation.resetActiveIndex()
+      }),
+    [searchNavigation],
+  )
 
   return (
     <div
@@ -114,8 +100,6 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
           <input
             aria-label="Filter commands"
             class={styles.searchInput}
-            onInput={onSearchInput}
-            onKeyDown={onSearchKeyDown}
             placeholder="Filter commands"
             ref={focusSearchInput}
             type="search"
@@ -136,24 +120,21 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
                 <section class={styles.group} key={group.name}>
                   <h3 class={styles.groupTitle}>{group.name}</h3>
                   <div class={styles.items}>
-                    {group.commands.map((command) => {
-                      const isActive = command === selectedCommand
+                    {group.commands.map(({ command, index }) => {
                       const className = command.hasLaunchHandler
-                        ? isActive
-                          ? `${styles.command} ${styles.active}`
-                          : styles.command
+                        ? styles.command
                         : `${styles.command} ${styles.disabled}`
 
                       return (
                         <button
                           aria-disabled={!command.hasLaunchHandler}
-                          aria-selected={isActive}
                           class={className}
                           disabled={!command.hasLaunchHandler}
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)
                           }}
+                          ref={searchNavigation.itemRef(index)}
                           role="option"
                           type="button"
                         >
@@ -304,16 +285,17 @@ function createLaunchCounts(history: LaunchHistory): LaunchCounts {
 }
 
 function groupCommands(commands: CommandRecordSnapshot[]) {
-  const groups = new Map<string, CommandRecordSnapshot[]>()
+  const groups = new Map<string, { command: CommandRecordSnapshot; index: number }[]>()
 
-  for (const command of commands) {
+  for (const [index, command] of commands.entries()) {
     const groupName = command.id.includes('.') ? command.id.split('.')[0]! : 'ungrouped'
     const group = groups.get(groupName)
+    const item = { command, index }
 
     if (group) {
-      group.push(command)
+      group.push(item)
     } else {
-      groups.set(groupName, [command])
+      groups.set(groupName, [item])
     }
   }
 
@@ -321,12 +303,4 @@ function groupCommands(commands: CommandRecordSnapshot[]) {
     name,
     commands: groupCommands,
   }))
-}
-
-function wrapIndex(index: number, length: number): number {
-  if (length === 0) {
-    return 0
-  }
-
-  return (index + length) % length
 }
