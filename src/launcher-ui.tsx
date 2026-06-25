@@ -1,8 +1,9 @@
 /// <reference path="./css.d.ts" />
 
-import type { Signal } from '@preact/signals'
 import { useSearchNavigation } from '@goddard-ai/ui-primitives'
+import type { Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
+import type { TargetedFocusEvent } from 'preact'
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
@@ -75,6 +76,18 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     },
     [searchNavigation],
   )
+  const hideWhenFocusLeaves = useCallback(
+    (event: TargetedFocusEvent<HTMLElement>) => {
+      const nextFocusedElement = event.relatedTarget
+
+      if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) {
+        return
+      }
+
+      isOpen.value = false
+    },
+    [isOpen],
+  )
 
   useEffect(
     () =>
@@ -93,7 +106,12 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       data-state-launcher=""
     >
       {isOpen.value ? (
-        <section aria-label={title} class={styles.panel} role="dialog">
+        <section
+          aria-label={title}
+          class={styles.panel}
+          onFocusOut={hideWhenFocusLeaves}
+          role="dialog"
+        >
           <header class={styles.header}>
             <h2>{title}</h2>
           </header>

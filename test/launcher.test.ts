@@ -87,6 +87,45 @@ test('focuses the filter input when opened with controller', async () => {
   expect(focus).toHaveBeenCalledOnce()
 })
 
+test('hides the launcher when focus leaves the panel', async () => {
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  const outsideButton = document.createElement('button')
+  document.body.append(outsideButton)
+
+  search!.dispatchEvent(
+    new FocusEvent('focusout', { bubbles: true, relatedTarget: outsideButton }),
+  )
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+
+  launcher.unmount()
+})
+
+test('keeps the launcher open when focus moves inside the panel', async () => {
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: vi.fn(),
+    }),
+  ])
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  const command = shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')
+
+  search!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: command }))
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+
+  launcher.unmount()
+})
+
 test('unmount removes launcher dom and is idempotent', () => {
   const launcher = mountStateLauncher()
 
