@@ -1,4 +1,8 @@
 minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - '@goddard-ai/ui-primitives'
+  - fuzzysort2
+  - esrap
 
 allowBuilds:
   esbuild: true
