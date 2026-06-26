@@ -39,20 +39,19 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   function updateFilteredCommands(
     nextCommands = commands,
-    nextLaunchCounts = readLaunchCounts(Date.now()),
     query = searchInputRef.current?.value ?? '',
   ) {
-    filteredCommands.value = filterCommands(nextCommands, query, nextLaunchCounts)
+    filteredCommands.value = filterCommands(nextCommands, query)
   }
 
   async function activateCommand(command: CommandRecordSnapshot) {
     try {
       await launchCommand(command.command)
-      const nextLaunchCounts = recordLaunch(command.id, Date.now())
+      recordLaunch(command.id, Date.now())
       if (searchInputRef.current) {
         searchInputRef.current.value = ''
       }
-      updateFilteredCommands(commands, nextLaunchCounts, '')
+      updateFilteredCommands(commands, '')
       searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
     } catch (error) {
@@ -71,8 +70,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       }
     },
     onQueryChange(nextQuery) {
-      const nextLaunchCounts = readLaunchCounts(Date.now())
-      updateFilteredCommands(commands, nextLaunchCounts, nextQuery)
+      updateFilteredCommands(commands, nextQuery)
       setLaunchError(undefined)
     },
   })
@@ -104,9 +102,8 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     () =>
       subscribeCommandRecords(() => {
         const nextCommands = listCommandRecords()
-        const nextLaunchCounts = readLaunchCounts(Date.now())
         setCommands(nextCommands)
-        updateFilteredCommands(nextCommands, nextLaunchCounts)
+        updateFilteredCommands(nextCommands)
         searchNavigation.resetActiveIndex()
       }),
     [searchNavigation],
@@ -187,11 +184,8 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   )
 }
 
-function filterCommands(
-  commands: CommandRecordSnapshot[],
-  query: string,
-  launchCounts: LaunchCounts,
-): CommandRecordSnapshot[] {
+function filterCommands(commands: CommandRecordSnapshot[], query: string): CommandRecordSnapshot[] {
+  const launchCounts = readLaunchCounts(Date.now())
   const trimmedQuery = query.trim()
 
   if (!trimmedQuery) {
@@ -229,14 +223,12 @@ function rankCommands(
   })
 }
 
-function recordLaunch(commandId: string, now: number): LaunchCounts {
+function recordLaunch(commandId: string, now: number): void {
   const history = readLaunchHistory(now)
   const timestamps = history[commandId] ?? []
   history[commandId] = [...timestamps, now]
 
   writeLaunchHistory(history)
-
-  return createLaunchCounts(history)
 }
 
 function readLaunchCounts(now: number): LaunchCounts {
