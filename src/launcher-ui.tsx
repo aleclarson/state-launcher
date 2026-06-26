@@ -28,11 +28,13 @@ type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
-  const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchCounts, setLaunchCounts] = useState(() => readLaunchCounts(Date.now()))
+  const [commands, setCommands] = useState(() =>
+    rankCommands(listCommandRecords(), launchCounts, true),
+  )
   const [launchError, setLaunchError] = useState<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const filteredCommands = useSignal(filterCommands(commands, '', launchCounts))
+  const filteredCommands = useSignal(commands)
   const currentFilteredCommands = filteredCommands.value
   const groupedCommands = groupCommands(currentFilteredCommands)
 
