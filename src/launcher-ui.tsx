@@ -4,7 +4,7 @@ import { useSearchNavigation } from '@goddard-ai/ui-primitives'
 import { useSignal, type Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
 import type { TargetedFocusEvent } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
@@ -28,20 +28,19 @@ type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
-  const [commands, setCommands] = useState(() =>
-    rankCommands(listCommandRecords(), readLaunchCounts(Date.now()), true),
-  )
+  const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchError, setLaunchError] = useState<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const filteredCommands = useSignal(commands)
-  const currentFilteredCommands = filteredCommands.value
-  const groupedCommands = groupCommands(currentFilteredCommands)
+  const visibleCommands = useSignal(commands)
+  const currentVisibleCommands = visibleCommands.value
+  const groupedCommands = groupCommands(currentVisibleCommands)
 
-  function updateFilteredCommands(
-    nextCommands = commands,
-    query = searchInputRef.current?.value ?? '',
-  ) {
-    filteredCommands.value = filterCommands(nextCommands, query)
+  function readSearchQuery() {
+    return searchInputRef.current?.value ?? ''
+  }
+
+  function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
+    visibleCommands.value = filterAndRankCommands(nextCommands, query)
   }
 
   async function activateCommand(command: CommandRecordSnapshot) {
@@ -51,7 +50,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       if (searchInputRef.current) {
         searchInputRef.current.value = ''
       }
-      updateFilteredCommands(commands, '')
+      refreshVisibleCommands(commands, '')
       searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
     } catch (error) {
@@ -61,32 +60,34 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   const searchNavigation = useSearchNavigation({
     activeAttribute: 'aria-selected',
-    count: () => filteredCommands.value.length,
+    count: () => visibleCommands.value.length,
     onActivate(index) {
-      const command = filteredCommands.value[index]
+      const command = visibleCommands.value[index]
 
       if (command?.hasLaunchHandler) {
         void activateCommand(command)
       }
     },
     onQueryChange(nextQuery) {
-      updateFilteredCommands(commands, nextQuery)
+      refreshVisibleCommands(commands, nextQuery)
       setLaunchError(undefined)
     },
   })
 
-  function focusSearchInput(input: HTMLInputElement | null) {
-    searchInputRef.current = input
-    const cleanup = searchNavigation.inputRef(input)
-    input?.focus()
+  const registerSearchInput = useCallback(
+    (input: HTMLInputElement | null) => {
+      searchInputRef.current = input
+      const cleanup = searchNavigation.inputRef(input)
 
-    return () => {
-      if (searchInputRef.current === input) {
-        searchInputRef.current = null
+      return () => {
+        if (searchInputRef.current === input) {
+          searchInputRef.current = null
+        }
+        cleanup?.()
       }
-      cleanup?.()
-    }
-  }
+    },
+    [searchNavigation],
+  )
 
   function hideWhenFocusLeaves(event: TargetedFocusEvent<HTMLElement>) {
     const nextFocusedElement = event.relatedTarget
@@ -103,11 +104,18 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       subscribeCommandRecords(() => {
         const nextCommands = listCommandRecords()
         setCommands(nextCommands)
-        updateFilteredCommands(nextCommands)
+        refreshVisibleCommands(nextCommands)
         searchNavigation.resetActiveIndex()
       }),
     [searchNavigation],
   )
+
+  useLayoutEffect(() => {
+    if (isOpen.value) {
+      refreshVisibleCommands(commands)
+      searchInputRef.current?.focus()
+    }
+  }, [isOpen.value])
 
   return (
     <div
@@ -129,7 +137,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             aria-label="Filter commands"
             class={styles.searchInput}
             placeholder="Filter commands"
-            ref={focusSearchInput}
+            ref={registerSearchInput}
             type="search"
           />
           {launchError ? (
@@ -137,7 +145,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
               {launchError}
             </div>
           ) : null}
-          {currentFilteredCommands.length === 0 ? (
+          {currentVisibleCommands.length === 0 ? (
             <div class={styles.empty}>
               {commands.length === 0 ? 'No commands registered.' : 'No commands match.'}
             </div>
@@ -184,7 +192,10 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   )
 }
 
-function filterCommands(commands: CommandRecordSnapshot[], query: string): CommandRecordSnapshot[] {
+function filterAndRankCommands(
+  commands: CommandRecordSnapshot[],
+  query: string,
+): CommandRecordSnapshot[] {
   const launchCounts = readLaunchCounts(Date.now())
   const trimmedQuery = query.trim()
 

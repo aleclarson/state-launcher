@@ -184,6 +184,89 @@ test('filters commands with fuzzysort2', async () => {
   expect(shadowRoot?.textContent).not.toContain('Many messages')
 })
 
+test('keeps the current filter when registered commands change', async () => {
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'billing'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  registerLaunchableState([
+    defineLaunchableState('billing.emptyInvoices', {
+      label: 'Empty invoices',
+    }),
+  ])
+  await nextRender()
+
+  expect(shadowRoot?.textContent).toContain('Payment failed')
+  expect(shadowRoot?.textContent).toContain('Empty invoices')
+  expect(shadowRoot?.textContent).not.toContain('Many messages')
+})
+
+test('does not refocus the filter input while filtering', async () => {
+  const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  expect(focus).toHaveBeenCalledOnce()
+
+  search!.value = 'payment'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(focus).toHaveBeenCalledOnce()
+})
+
+test('refreshes visible commands from the dom query when reopened', async () => {
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      tags: ['card'],
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+    }),
+  ])
+
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  let search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'card'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getLauncherShadowRoot()?.textContent).toContain('Payment failed')
+  expect(getLauncherShadowRoot()?.textContent).not.toContain('Many messages')
+
+  launcher.close()
+  await nextRender()
+  launcher.open()
+  await nextRender()
+  search = getLauncherShadowRoot()?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  expect(search?.value).toBe('')
+  expect(getLauncherShadowRoot()?.textContent).toContain('Payment failed')
+  expect(getLauncherShadowRoot()?.textContent).toContain('Many messages')
+})
+
 test('boosts states launched in the past 24 hours in search results', async () => {
   const now = Date.now()
   window.localStorage.setItem(
@@ -369,7 +452,7 @@ test('disables commands without launch handlers', async () => {
   expect(shadowRoot?.querySelector('[role="alert"]')).toBeNull()
 })
 
-test('ranks commands with handlers before disabled commands', () => {
+test('ranks commands with handlers before disabled commands', async () => {
   registerLaunchableState([
     defineLaunchableState('aaa.disabled', {
       label: 'AAA disabled',
@@ -381,6 +464,7 @@ test('ranks commands with handlers before disabled commands', () => {
   ])
 
   mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
   const commands = [
     ...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('[role="option"]'),
   ]
