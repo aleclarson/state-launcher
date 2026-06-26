@@ -28,9 +28,8 @@ type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
-  const [launchCounts, setLaunchCounts] = useState(() => readLaunchCounts(Date.now()))
   const [commands, setCommands] = useState(() =>
-    rankCommands(listCommandRecords(), launchCounts, true),
+    rankCommands(listCommandRecords(), readLaunchCounts(Date.now()), true),
   )
   const [launchError, setLaunchError] = useState<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -40,7 +39,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   function updateFilteredCommands(
     nextCommands = commands,
-    nextLaunchCounts = launchCounts,
+    nextLaunchCounts = readLaunchCounts(Date.now()),
     query = searchInputRef.current?.value ?? '',
   ) {
     filteredCommands.value = filterCommands(nextCommands, query, nextLaunchCounts)
@@ -50,7 +49,6 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     try {
       await launchCommand(command.command)
       const nextLaunchCounts = recordLaunch(command.id, Date.now())
-      setLaunchCounts(nextLaunchCounts)
       if (searchInputRef.current) {
         searchInputRef.current.value = ''
       }
@@ -74,7 +72,6 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     },
     onQueryChange(nextQuery) {
       const nextLaunchCounts = readLaunchCounts(Date.now())
-      setLaunchCounts(nextLaunchCounts)
       updateFilteredCommands(commands, nextLaunchCounts, nextQuery)
       setLaunchError(undefined)
     },
@@ -109,7 +106,6 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
         const nextCommands = listCommandRecords()
         const nextLaunchCounts = readLaunchCounts(Date.now())
         setCommands(nextCommands)
-        setLaunchCounts(nextLaunchCounts)
         updateFilteredCommands(nextCommands, nextLaunchCounts)
         searchNavigation.resetActiveIndex()
       }),
