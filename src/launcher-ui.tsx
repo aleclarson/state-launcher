@@ -17,6 +17,7 @@ import {
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
 const launchHistoryWindowMs = 24 * 60 * 60 * 1000
+const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
 
 export type LauncherProps = {
@@ -100,6 +101,12 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   )
 
   function hideWhenFocusLeaves(event: TargetedFocusEvent<HTMLElement>) {
+    // Mobile drawers have explicit dismissal controls, and closing on blur can
+    // remove a tapped command before iOS dispatches its click.
+    if (window.matchMedia(mobileViewportQuery).matches) {
+      return
+    }
+
     const nextFocusedElement = event.relatedTarget
 
     if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) {
@@ -271,13 +278,6 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)
-                          }}
-                          onPointerDown={(event) => {
-                            if (event.pointerType === 'touch') {
-                              // Keep iOS from blurring the search input and closing
-                              // the panel before it dispatches the command's click.
-                              event.preventDefault()
-                            }
                           }}
                           ref={searchNavigation.itemRef(index)}
                           role="option"

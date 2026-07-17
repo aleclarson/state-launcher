@@ -204,6 +204,10 @@ test('focuses the filter input when opened with controller', async () => {
 })
 
 test('hides the launcher when focus leaves the panel', async () => {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: false })),
+  )
   const launcher = mountStateLauncher({ initiallyOpen: true })
   await nextRender()
   const shadowRoot = getLauncherShadowRoot()
@@ -546,8 +550,13 @@ test('resets the filter input after launching with click', async () => {
   expect(search?.value).toBe('')
 })
 
-test('keeps an iOS tap from dismissing the drawer before command activation', async () => {
+test('allows the search input to blur during mobile command activation', async () => {
+  const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
   const launch = vi.fn()
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true })),
+  )
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
       label: 'Payment failed',
@@ -566,14 +575,15 @@ test('keeps an iOS tap from dismissing the drawer before command activation', as
     pointerType: 'touch',
   })
 
-  if (command!.dispatchEvent(pointerDown)) {
-    search!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
-  }
+  command!.dispatchEvent(pointerDown)
+  search!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
   command!.click()
   await nextRender()
 
-  expect(pointerDown.defaultPrevented).toBe(true)
+  expect(pointerDown.defaultPrevented).toBe(false)
   expect(launch).toHaveBeenCalledOnce()
+  expect(focus).toHaveBeenCalledOnce()
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
 })
 
 test('disables commands without launch handlers', async () => {
