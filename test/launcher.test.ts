@@ -78,6 +78,10 @@ test('fixes the mobile drawer container to the visible viewport', () => {
   expect(launcherCss).toContain('state-launcher-slide-out')
 })
 
+test('contains command list overscroll inside the launcher', () => {
+  expect(launcherCss).toMatch(/\.groups \{[\s\S]*?overscroll-behavior: contain/)
+})
+
 test('tracks the visual viewport while the mobile keyboard is visible', async () => {
   const visualViewport = createTestVisualViewport(812, 0)
   vi.stubGlobal('visualViewport', visualViewport)
