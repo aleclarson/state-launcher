@@ -54,14 +54,18 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     visibleCommands.value = filterAndRankCommands(nextCommands, query)
   }
 
-  async function activateCommand(command: CommandRecordSnapshot) {
+  async function activateCommand(command: CommandRecordSnapshot, preserveSearch = false) {
     try {
+      if (preserveSearch) {
+        searchInputRef.current?.blur()
+      }
+
       await launchCommand(command.command)
       recordLaunch(command.id, Date.now())
-      if (searchInputRef.current) {
+      if (!preserveSearch && searchInputRef.current) {
         searchInputRef.current.value = ''
       }
-      refreshVisibleCommands(commands, '')
+      refreshVisibleCommands(commands, preserveSearch ? readSearchQuery() : '')
       searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
     } catch (error) {
@@ -76,7 +80,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       const command = visibleCommands.value[index]
 
       if (command?.hasLaunchHandler) {
-        void activateCommand(command)
+        void activateCommand(command, true)
       }
     },
     onQueryChange(nextQuery) {

@@ -504,12 +504,17 @@ test('activates the selected command with keyboard navigation', async () => {
   expect(secondLaunch).toHaveBeenCalledOnce()
 })
 
-test('resets the filter input after launching with keyboard', async () => {
+test('preserves the filter and blurs the input after launching with keyboard', async () => {
+  const blur = vi.spyOn(HTMLInputElement.prototype, 'blur')
   const launch = vi.fn()
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
       label: 'Payment failed',
       launch,
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      launch: vi.fn(),
     }),
   ])
 
@@ -523,7 +528,9 @@ test('resets the filter input after launching with keyboard', async () => {
   await nextRender()
 
   expect(launch).toHaveBeenCalledOnce()
-  expect(search?.value).toBe('')
+  expect(blur).toHaveBeenCalledOnce()
+  expect(search?.value).toBe('payment')
+  expect(getLauncherShadowRoot()?.textContent).not.toContain('Many messages')
 })
 
 test('resets the filter input after launching with click', async () => {
