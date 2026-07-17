@@ -22,6 +22,10 @@
     "./preact": {
       "types": "./dist/preact.d.mts",
       "default": "./dist/preact.mjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.mts",
+      "default": "./dist/react.mjs"
     }
   },
   "scripts": {
@@ -43,11 +47,15 @@
   "devDependencies": {
     "@tsdown/css": "^0.22.2",
     "@types/node": "^25.9.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "happy-dom": "^20.10.1",
     "oxfmt": "^0.53.0",
     "oxlint": "^1.68.0",
     "preact": "^10.29.2",
     "radashi": "^12.9.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "tsdown": "^0.22.2",
     "tsnapi": "^0.3.3",
     "typescript": "^6.0.3",
@@ -55,7 +63,13 @@
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "preact": "*"
+    "preact": "*",
+    "react": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "packageManager": "pnpm@11.5.1"
 }

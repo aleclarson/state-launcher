@@ -2,7 +2,7 @@ import { defineConfig } from 'tsdown'
 import ApiSnapshot from 'tsnapi/rolldown'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/preact.ts'],
+  entry: ['src/index.ts', 'src/preact.ts', 'src/react.ts'],
   format: ['esm'],
   dts: true,
   css: {

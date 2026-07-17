@@ -269,10 +269,13 @@ export function subscribeCommandRecords(listener: () => void): () => void {
 export function setCommandLaunchHandler(
   command: StateLauncherCommand,
   launch: LaunchHandler,
+  retainCommand = true,
 ): () => void {
   const record = registerCommand(command)
 
-  record.retainedCommands.add(command)
+  if (retainCommand) {
+    record.retainedCommands.add(command)
+  }
   record.attachedHandlers.add(launch)
   refreshCommandRecord(record)
   notifyCommandListeners()

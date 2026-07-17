@@ -12,18 +12,21 @@ Use this package if you need:
 - command definitions that can live separately from the code that knows how to enter a state
 - direct programmatic launching for tests or setup scripts
 - Shadow DOM style isolation so the launcher does not inherit app CSS
-- a Preact lifecycle hook for attaching launch handlers while components are mounted
+- React and Preact lifecycle hooks for attaching launch handlers while components are mounted
 
 Do not use it if you need:
 
 - production feature flags, routing, or end-user navigation
 - persisted history, acknowledgements, parameters, or event inspection
 - mock-server orchestration or data seeding built into the package
-- framework integrations beyond the exported Preact hook
+- framework integrations beyond the exported React and Preact hooks
 
 ## Requirements and tradeoff
 
-`state-launcher` is browser-only, ESM-only, and currently depends on Preact, `@preact/signals`, `isolet-js`, and `fuzzysort2`.
+`state-launcher` is browser-only and ESM-only. Its launcher UI depends on Preact,
+`@preact/signals`, `isolet-js`, and `fuzzysort2`. The `state-launcher/react`
+entry point has an optional React peer dependency, so framework-neutral and
+Preact consumers do not need to install React.
 
 The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, disabled display for commands without handlers, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
 
@@ -91,7 +94,52 @@ bundles to drop launchable-state definitions.
 commands from the previous module instance are removed before the replacement
 module registers its command list.
 
-## Preact lifecycle hook
+## Framework lifecycle hooks
+
+Use `state-launcher/react` when React components own launch handler lifetimes.
+For a state owned by one component, define it directly through the hook. The
+returned handle is stable across rerenders and can launch the state directly;
+the command is discoverable only while the component is mounted.
+
+```tsx
+import { useLaunchableState } from 'state-launcher/react'
+
+export function BillingDebugState() {
+  const paymentFailed = useLaunchableState('billing.paymentFailed', {
+    label: 'Payment failed',
+    tags: ['billing', 'card'],
+    async launch({ signal }) {
+      await signInAsTestUser({ signal })
+      await createFailedPaymentMethod({ signal })
+      await navigateToBilling()
+    },
+  })
+
+  return <button onClick={() => paymentFailed.launch()}>Preview failed payment</button>
+}
+```
+
+When several components contribute handlers to one state, define the command
+in their nearest shared parent module and pass that handle to each component:
+
+```tsx
+import { useLaunchableState } from 'state-launcher/react'
+import { paymentFailed } from './launchable-states'
+
+export function BillingDebugState() {
+  useLaunchableState(paymentFailed, async ({ signal }) => {
+    await signInAsTestUser({ signal })
+    await createFailedPaymentMethod({ signal })
+    await navigateToBilling()
+  })
+
+  return null
+}
+```
+
+In either form, rerenders update the handler closure without re-registering the
+command. Local-definition metadata initializes with the stable handle; use a
+shared command when metadata or ownership needs to live outside one component.
 
 Use `state-launcher/preact` when a component owns one launch handler's lifetime.
 Metadata still belongs on `defineLaunchableState`; the hook only attaches and

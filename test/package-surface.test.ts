@@ -13,7 +13,8 @@ import {
   type MountStateLauncherOptions,
   type StateLauncherCommand,
 } from '../src/index'
-import { useLaunchableState } from '../src/preact'
+import { useLaunchableState as usePreactLaunchableState } from '../src/preact'
+import { useLaunchableState as useReactLaunchableState } from '../src/react'
 
 test('exports the package surface', () => {
   expect(typeof clearCommands).toBe('function')
@@ -22,7 +23,8 @@ test('exports the package surface', () => {
   expect(typeof mountStateLauncher).toBe('function')
   expect(typeof registerLaunchableState).toBe('function')
   expect(typeof unregisterCommand).toBe('function')
-  expect(typeof useLaunchableState).toBe('function')
+  expect(typeof usePreactLaunchableState).toBe('function')
+  expect(typeof useReactLaunchableState).toBe('function')
 })
 
 type _PublicTypes = [

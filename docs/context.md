@@ -84,13 +84,39 @@ import {
 } from 'state-launcher'
 ```
 
-Use `state-launcher/preact` only when a Preact component should own a handler lifetime:
+Use `state-launcher/react` when a React component should own a handler lifetime:
+
+```tsx
+import { useLaunchableState } from 'state-launcher/react'
+
+const command = useLaunchableState('billing.paymentFailed', {
+  label: 'Payment failed',
+  launch: ({ signal }) => showFailedPayment({ signal }),
+})
+```
+
+This local-definition form returns a stable command handle, makes it
+discoverable while the component is mounted, uses the latest render's handler,
+and removes its registration and handler on unmount. Metadata initializes when
+the handle is created.
+
+For a state with handlers in multiple components, define one command in their
+nearest shared parent module and attach it from each owner:
+
+```tsx
+useLaunchableState(sharedPaymentFailedCommand, ({ signal }) => showFailedPayment({ signal }))
+```
+
+Use `state-launcher/preact` when a Preact component should own a handler lifetime:
 
 ```tsx
 import { useLaunchableState } from 'state-launcher/preact'
 ```
 
-The hook attaches one handler on mount/update, registers the command for launcher discovery, and removes that exact handler during cleanup. Metadata still comes from the command handle.
+Both framework entry points attach one handler with the component lifetime,
+register the command for launcher discovery, and remove that exact handler
+during cleanup. The React hook additionally supports local definitions and
+calls updated handlers without reattaching the registry handler.
 
 ## Launcher UI behavior
 
