@@ -96,7 +96,9 @@ The hook attaches one handler on mount/update, registers the command for launche
 
 `mountStateLauncher` mounts a Shadow DOM-isolated floating launcher panel. It supports:
 
-- `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions
+- fixed `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions on desktop widths above `1024px`
+- viewport-centered positioning at `1024px` and below; `position` still selects the corner used when the viewport grows beyond the breakpoint
+- 16px mobile/tablet viewport spacing plus safe-area insets, with a constrained panel height and a scrolling command list
 - custom panel title
 - initially open or closed state
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first

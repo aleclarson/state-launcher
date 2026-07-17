@@ -1,9 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import {
   clearCommands,
   defineLaunchableState,
   mountStateLauncher,
   registerLaunchableState,
 } from '../src/index'
+
+const launcherCss = readFileSync(resolve('src/launcher.module.css'), 'utf8')
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
 
@@ -21,14 +26,19 @@ afterEach(() => {
   clearCommands()
 })
 
-test('mounts the launcher into a shadow dom host', () => {
+test.each([
+  ['bottom-right', { bottom: '24px', left: '', right: '24px', top: '' }],
+  ['bottom-left', { bottom: '24px', left: '24px', right: '', top: '' }],
+  ['top-right', { bottom: '', left: '', right: '24px', top: '24px' }],
+  ['top-left', { bottom: '', left: '24px', right: '', top: '24px' }],
+] as const)('mounts the launcher into its %s desktop corner', (position, expectedStyles) => {
   const target = document.createElement('main')
   document.body.append(target)
 
   const launcher = mountStateLauncher({
     target,
     initiallyOpen: true,
-    position: 'top-left',
+    position,
     title: 'Debug states',
   })
   const host = target.querySelector<HTMLElement>('[data-state-launcher-host="true"]')
@@ -38,14 +48,32 @@ test('mounts the launcher into a shadow dom host', () => {
   expect(shadowRoot).toBeTruthy()
   expect(host?.style.position).toBe('fixed')
   expect(host?.style.zIndex).toBe('2147483647')
-  expect(host?.style.top).toBe('24px')
-  expect(host?.style.left).toBe('24px')
+  expect(host?.style.bottom).toBe(expectedStyles.bottom)
+  expect(host?.style.left).toBe(expectedStyles.left)
+  expect(host?.style.right).toBe(expectedStyles.right)
+  expect(host?.style.top).toBe(expectedStyles.top)
   expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
-    'top-left',
+    position,
   )
   expect(shadowRoot?.querySelector('[role="dialog"]')?.textContent).toContain('Debug states')
 
   launcher.unmount()
+})
+
+test('uses a fixed panel with deterministic mobile and tablet viewport constraints', () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const panel = shadowRoot?.querySelector<HTMLElement>('[role="dialog"]')
+
+  expect(panel).toBeTruthy()
+  expect(launcherCss).toContain('position: fixed')
+  expect(launcherCss).toContain('@media (max-width: 1024px)')
+  expect(launcherCss).toContain('left: 50%')
+  expect(launcherCss).toContain('top: 50%')
+  expect(launcherCss).toContain('transform: translate(-50%, -50%)')
+  expect(launcherCss).toContain('100dvh - 32px')
+  expect(launcherCss).toContain('100dvw - 32px')
+  expect(launcherCss).not.toContain('position: absolute')
 })
 
 test('controls open, close, and toggle state', () => {
@@ -95,9 +123,7 @@ test('hides the launcher when focus leaves the panel', async () => {
   const outsideButton = document.createElement('button')
   document.body.append(outsideButton)
 
-  search!.dispatchEvent(
-    new FocusEvent('focusout', { bubbles: true, relatedTarget: outsideButton }),
-  )
+  search!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outsideButton }))
   await nextRender()
 
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()

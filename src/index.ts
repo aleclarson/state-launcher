@@ -13,7 +13,10 @@ export type MountStateLauncherOptions = {
   target?: HTMLElement
   /** Whether the command panel is open immediately after mount. Defaults to `false`. */
   initiallyOpen?: boolean
-  /** Floating position for the launcher panel. Defaults to `bottom-right`. */
+  /**
+   * Desktop corner for the launcher panel. At viewport widths of 1024px and below,
+   * the panel is centered regardless of this value. Defaults to `bottom-right`.
+   */
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   /** Accessible panel title. Defaults to `Commands`. */
   title?: string

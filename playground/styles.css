@@ -158,6 +158,11 @@ h2 {
   border-color: #77b7d4;
 }
 
+.responsiveHint {
+  color: #526176;
+  font-size: 12px;
+}
+
 .preview {
   display: grid;
   gap: 28px;

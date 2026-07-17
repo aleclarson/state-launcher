@@ -25,7 +25,6 @@
     sans-serif;
   font-size: 14px;
   line-height: 1.4;
-  position: relative;
 
   &,
   *,
@@ -37,7 +36,7 @@
   &.bottom-left,
   &.top-left {
     .panel {
-      left: 0;
+      left: 24px;
       right: auto;
     }
   }
@@ -46,7 +45,7 @@
   &.top-right {
     .panel {
       bottom: auto;
-      top: 0;
+      top: 24px;
     }
   }
 
@@ -54,17 +53,21 @@
     background: var(--state-launcher-panel-bg);
     border: 1px solid var(--state-launcher-border);
     border-radius: 8px;
-    bottom: 0;
+    bottom: 24px;
     box-shadow: 0 18px 48px var(--state-launcher-shadow);
-    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
     overflow: hidden;
-    position: absolute;
-    right: 0;
-    width: min(380px, calc(100vw - 48px));
+    position: fixed;
+    right: 24px;
+    width: 380px;
   }
 
   .header {
     border-bottom: 1px solid var(--state-launcher-command-border);
+    flex-shrink: 0;
     padding: 12px 14px;
 
     h2 {
@@ -76,6 +79,7 @@
 
   .empty {
     color: var(--state-launcher-muted-fg);
+    flex-shrink: 0;
     padding: 14px;
   }
 
@@ -85,6 +89,7 @@
     border-bottom: 1px solid var(--state-launcher-command-border);
     color: var(--state-launcher-text);
     display: block;
+    flex-shrink: 0;
     font: inherit;
     outline: none;
     padding: 11px 14px;
@@ -95,11 +100,14 @@
     background: var(--state-launcher-danger-bg);
     border-bottom: 1px solid var(--state-launcher-danger-border);
     color: var(--state-launcher-danger-fg);
+    flex-shrink: 0;
     padding: 10px 14px;
   }
 
   .groups {
+    flex: 1 1 auto;
     max-height: 360px;
+    min-height: 0;
     overflow: auto;
     padding: 6px 0 8px;
   }
@@ -169,6 +177,27 @@
     color: var(--state-launcher-subtle-fg);
     font-size: 11px;
     overflow-wrap: anywhere;
+  }
+}
+
+/* Center on mobile and tablet viewports; desktop corner placement starts above 1024px. */
+@media (max-width: 1024px) {
+  .stateLauncher.bottom-right,
+  .stateLauncher.bottom-left,
+  .stateLauncher.top-right,
+  .stateLauncher.top-left {
+    .panel {
+      bottom: auto;
+      left: 50%;
+      max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
+      max-width: calc(100dvw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
+      right: auto;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 380px;
+    }
   }
 }
 

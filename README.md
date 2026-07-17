@@ -71,6 +71,12 @@ document.querySelector('#open-state-launcher')?.addEventListener('click', () => 
 await paymentFailed.launch()
 ```
 
+`position` selects one of four fixed desktop corners. At viewport widths of
+`1024px` and below, the package centers the panel in the visual viewport instead,
+regardless of the selected corner. The centered panel keeps 16px of safe spacing,
+accounts for device safe-area insets, and scrolls its command list when viewport
+height is limited. No consumer Shadow DOM overrides are needed.
+
 `mountStateLauncher()` does not render its own persistent trigger. Use the
 returned controller to wire the launcher to an app-owned button, menu item,
 keyboard shortcut, or test helper.
