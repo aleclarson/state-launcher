@@ -20,6 +20,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
   window.localStorage.clear()
@@ -60,7 +61,7 @@ test.each([
   launcher.unmount()
 })
 
-test('uses a fullscreen bottom drawer on mobile and tablet viewports', () => {
+test('fixes the mobile drawer container to the visible viewport', () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
   const panel = shadowRoot?.querySelector<HTMLElement>('[role="dialog"]')
@@ -69,11 +70,31 @@ test('uses a fullscreen bottom drawer on mobile and tablet viewports', () => {
   expect(launcherCss).toContain('position: fixed')
   expect(launcherCss).toContain('@media (max-width: 1024px)')
   expect(launcherCss).toContain('border-radius: 14px 14px 0 0')
+  expect(launcherCss).toContain('height: var(--state-launcher-visible-height, 100dvh)')
+  expect(launcherCss).toContain('top: var(--state-launcher-visible-top, 0px)')
   expect(launcherCss).toContain('top: calc(20px + env(safe-area-inset-top))')
-  expect(launcherCss).toContain('max-height: calc(100dvh - 20px - env(safe-area-inset-top))')
+  expect(launcherCss).toContain('height: calc(100% - 20px - env(safe-area-inset-top))')
   expect(launcherCss).toContain('state-launcher-slide-in')
   expect(launcherCss).toContain('state-launcher-slide-out')
-  expect(launcherCss).not.toContain('position: absolute')
+})
+
+test('tracks the visual viewport while the mobile keyboard is visible', async () => {
+  const visualViewport = createTestVisualViewport(812, 0)
+  vi.stubGlobal('visualViewport', visualViewport)
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const launcher = getLauncherShadowRoot()?.querySelector<HTMLElement>('[data-state-launcher]')
+
+  expect(launcher?.style.getPropertyValue('--state-launcher-visible-height')).toBe('812px')
+  expect(launcher?.style.getPropertyValue('--state-launcher-visible-top')).toBe('0px')
+
+  visualViewport.height = 463
+  visualViewport.offsetTop = 117
+  visualViewport.dispatchEvent(new Event('resize'))
+
+  expect(launcher?.style.getPropertyValue('--state-launcher-visible-height')).toBe('463px')
+  expect(launcher?.style.getPropertyValue('--state-launcher-visible-top')).toBe('117px')
 })
 
 test('renders mobile drawer dismissal affordances', () => {
@@ -521,6 +542,36 @@ test('resets the filter input after launching with click', async () => {
   expect(search?.value).toBe('')
 })
 
+test('keeps an iOS tap from dismissing the drawer before command activation', async () => {
+  const launch = vi.fn()
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch,
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  const command = shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')
+  const pointerDown = new PointerEvent('pointerdown', {
+    bubbles: true,
+    cancelable: true,
+    pointerType: 'touch',
+  })
+
+  if (command!.dispatchEvent(pointerDown)) {
+    search!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+  }
+  command!.click()
+  await nextRender()
+
+  expect(pointerDown.defaultPrevented).toBe(true)
+  expect(launch).toHaveBeenCalledOnce()
+})
+
 test('disables commands without launch handlers', async () => {
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
@@ -603,6 +654,13 @@ function createTestStorage(): Storage {
       values.set(key, value)
     },
   }
+}
+
+function createTestVisualViewport(height: number, offsetTop: number) {
+  return Object.assign(new EventTarget(), {
+    height,
+    offsetTop,
+  })
 }
 
 async function nextRender() {

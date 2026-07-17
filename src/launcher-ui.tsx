@@ -31,6 +31,7 @@ type LaunchHistory = Record<string, number[]>
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchError, setLaunchError] = useState<string>()
+  const launcherRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
@@ -173,11 +174,37 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     }
   }, [isLauncherOpen])
 
+  useEffect(() => {
+    const launcher = launcherRef.current
+    const viewport = window.visualViewport
+
+    if (!launcher || !viewport) {
+      return
+    }
+
+    // iOS does not resize dynamic viewport units for its keyboard, but it does
+    // report the remaining usable area through VisualViewport.
+    const syncVisibleViewport = () => {
+      launcher.style.setProperty('--state-launcher-visible-height', `${viewport.height}px`)
+      launcher.style.setProperty('--state-launcher-visible-top', `${viewport.offsetTop}px`)
+    }
+
+    syncVisibleViewport()
+    viewport.addEventListener('resize', syncVisibleViewport)
+    viewport.addEventListener('scroll', syncVisibleViewport)
+
+    return () => {
+      viewport.removeEventListener('resize', syncVisibleViewport)
+      viewport.removeEventListener('scroll', syncVisibleViewport)
+    }
+  }, [])
+
   return (
     <div
       class={`${styles.stateLauncher} ${styles[position]}`}
       data-position={position}
       data-state-launcher=""
+      ref={launcherRef}
     >
       <>
         {isLauncherOpen ? (
@@ -244,6 +271,13 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)
+                          }}
+                          onPointerDown={(event) => {
+                            if (event.pointerType === 'touch') {
+                              // Keep iOS from blurring the search input and closing
+                              // the panel before it dispatches the command's click.
+                              event.preventDefault()
+                            }
                           }}
                           ref={searchNavigation.itemRef(index)}
                           role="option"

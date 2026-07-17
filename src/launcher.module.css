@@ -197,15 +197,24 @@
   .stateLauncher.top-right,
   .stateLauncher.top-left {
     font-size: 16px;
+    height: 100vh;
+    height: var(--state-launcher-visible-height, 100dvh);
+    left: 0;
+    pointer-events: none;
+    position: fixed;
+    right: 0;
+    top: var(--state-launcher-visible-top, 0px);
 
     .panel {
       border-bottom: 0;
       border-radius: 14px 14px 0 0;
-      bottom: 0;
+      bottom: auto;
+      height: calc(100% - 20px - env(safe-area-inset-top));
       left: 0;
-      max-height: calc(100vh - 20px - env(safe-area-inset-top));
-      max-height: calc(100dvh - 20px - env(safe-area-inset-top));
+      max-height: none;
       max-width: none;
+      pointer-events: auto;
+      position: absolute;
       right: 0;
       top: calc(20px + env(safe-area-inset-top));
       width: auto;
@@ -228,7 +237,8 @@
       height: calc(20px + env(safe-area-inset-top));
       left: 0;
       padding: 0;
-      position: fixed;
+      pointer-events: auto;
+      position: absolute;
       right: 0;
       top: 0;
       width: 100%;
