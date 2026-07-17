@@ -15,7 +15,8 @@ export type MountStateLauncherOptions = {
   initiallyOpen?: boolean
   /**
    * Desktop corner for the launcher panel. At viewport widths of 1024px and below,
-   * the panel is centered regardless of this value. Defaults to `bottom-right`.
+   * the panel becomes a fullscreen bottom drawer regardless of this value. Defaults
+   * to `bottom-right`.
    */
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   /** Accessible panel title. Defaults to `Commands`. */

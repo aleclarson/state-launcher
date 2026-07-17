@@ -210,7 +210,9 @@ function App() {
                   </button>
                 ))}
               </div>
-              <span class="responsiveHint">Centered at viewport widths of 1024px and below.</span>
+              <span class="responsiveHint">
+                Fullscreen drawer at viewport widths of 1024px and below.
+              </span>
             </div>
           </section>
 

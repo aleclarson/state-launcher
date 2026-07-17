@@ -3,7 +3,7 @@
 import { useSearchNavigation } from '@goddard-ai/ui-primitives'
 import { useSignal, type Signal } from '@preact/signals'
 import { searchFields } from 'fuzzysort2'
-import type { TargetedFocusEvent } from 'preact'
+import type { TargetedFocusEvent, TargetedPointerEvent } from 'preact'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 import type { MountStateLauncherOptions } from './index'
@@ -17,6 +17,7 @@ import {
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
 const launchHistoryWindowMs = 24 * 60 * 60 * 1000
+const swipeDismissDistance = 56
 
 export type LauncherProps = {
   isOpen: Signal<boolean>
@@ -31,6 +32,14 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const [launchError, setLaunchError] = useState<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const hasOpenedRef = useRef(isOpen.value)
+  const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
+  const isLauncherOpen = isOpen.value
+  const panelState = isLauncherOpen ? 'open' : hasOpenedRef.current ? 'closed' : 'idle'
+
+  if (isLauncherOpen) {
+    hasOpenedRef.current = true
+  }
   const visibleCommands = useSignal(commands)
   const currentVisibleCommands = visibleCommands.value
   const groupedCommands = groupCommands(currentVisibleCommands)
@@ -99,6 +108,49 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     isOpen.value = false
   }
 
+  function startSwipe(event: TargetedPointerEvent<HTMLElement>) {
+    if (event.isPrimary) {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
+
+    swipeStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    }
+  }
+
+  function updateSwipe(event: TargetedPointerEvent<HTMLElement>) {
+    const swipeStart = swipeStartRef.current
+
+    if (!swipeStart || swipeStart.pointerId !== event.pointerId) {
+      return
+    }
+
+    const horizontalDistance = Math.abs(event.clientX - swipeStart.x)
+    const verticalDistance = event.clientY - swipeStart.y
+
+    if (verticalDistance < swipeDismissDistance || verticalDistance <= horizontalDistance) {
+      return
+    }
+
+    swipeStartRef.current = undefined
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    isOpen.value = false
+  }
+
+  function stopSwipe(event: TargetedPointerEvent<HTMLElement>) {
+    if (swipeStartRef.current?.pointerId === event.pointerId) {
+      swipeStartRef.current = undefined
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
   useEffect(
     () =>
       subscribeCommandRecords(() => {
@@ -111,11 +163,15 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   )
 
   useLayoutEffect(() => {
-    if (isOpen.value) {
+    if (isLauncherOpen) {
       refreshVisibleCommands(commands)
       searchInputRef.current?.focus()
+    } else if (!isLauncherOpen && searchInputRef.current) {
+      searchInputRef.current.value = ''
+      refreshVisibleCommands(commands, '')
+      searchNavigation.resetActiveIndex()
     }
-  }, [isOpen.value])
+  }, [isLauncherOpen])
 
   return (
     <div
@@ -123,14 +179,34 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       data-position={position}
       data-state-launcher=""
     >
-      {isOpen.value ? (
+      <>
+        {isLauncherOpen ? (
+          <button
+            aria-label="Close launcher"
+            class={styles.dismissArea}
+            onClick={() => {
+              isOpen.value = false
+            }}
+            tabIndex={-1}
+            type="button"
+          />
+        ) : null}
         <section
+          aria-hidden={!isLauncherOpen}
           aria-label={title}
           class={styles.panel}
+          data-state={panelState}
           onFocusOut={hideWhenFocusLeaves}
-          role="dialog"
+          role={isLauncherOpen ? 'dialog' : undefined}
         >
-          <header class={styles.header}>
+          <header
+            class={styles.header}
+            onPointerCancel={stopSwipe}
+            onPointerDown={startSwipe}
+            onPointerMove={updateSwipe}
+            onPointerUp={stopSwipe}
+          >
+            <span aria-hidden="true" class={styles.dragHandle} />
             <h2>{title}</h2>
           </header>
           <input
@@ -187,7 +263,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             </div>
           )}
         </section>
-      ) : null}
+      </>
     </div>
   )
 }

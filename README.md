@@ -75,10 +75,10 @@ await paymentFailed.launch()
 ```
 
 `position` selects one of four fixed desktop corners. At viewport widths of
-`1024px` and below, the package centers the panel in the visual viewport instead,
-regardless of the selected corner. The centered panel keeps 16px of safe spacing,
-accounts for device safe-area insets, and scrolls its command list when viewport
-height is limited. No consumer Shadow DOM overrides are needed.
+`1024px` and below, the package uses a fullscreen bottom drawer regardless of the
+selected corner. The drawer leaves a safe-area-aware strip above its rounded top
+corners; tap that strip or swipe down from the pill above the title to close it.
+No consumer Shadow DOM overrides are needed.
 
 `mountStateLauncher()` does not render its own persistent trigger. Use the
 returned controller to wire the launcher to an app-owned button, menu item,

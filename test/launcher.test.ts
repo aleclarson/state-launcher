@@ -60,7 +60,7 @@ test.each([
   launcher.unmount()
 })
 
-test('uses a fixed panel with deterministic mobile and tablet viewport constraints', () => {
+test('uses a fullscreen bottom drawer on mobile and tablet viewports', () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
   const panel = shadowRoot?.querySelector<HTMLElement>('[role="dialog"]')
@@ -68,12 +68,64 @@ test('uses a fixed panel with deterministic mobile and tablet viewport constrain
   expect(panel).toBeTruthy()
   expect(launcherCss).toContain('position: fixed')
   expect(launcherCss).toContain('@media (max-width: 1024px)')
-  expect(launcherCss).toContain('left: 50%')
-  expect(launcherCss).toContain('top: 50%')
-  expect(launcherCss).toContain('transform: translate(-50%, -50%)')
-  expect(launcherCss).toContain('100dvh - 32px')
-  expect(launcherCss).toContain('100dvw - 32px')
+  expect(launcherCss).toContain('border-radius: 14px 14px 0 0')
+  expect(launcherCss).toContain('top: calc(20px + env(safe-area-inset-top))')
+  expect(launcherCss).toContain('max-height: calc(100dvh - 20px - env(safe-area-inset-top))')
+  expect(launcherCss).toContain('state-launcher-slide-in')
+  expect(launcherCss).toContain('state-launcher-slide-out')
   expect(launcherCss).not.toContain('position: absolute')
+})
+
+test('renders mobile drawer dismissal affordances', () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+
+  expect(shadowRoot?.querySelector('[aria-label="Close launcher"]')).toBeTruthy()
+  expect(shadowRoot?.querySelector('[aria-hidden="true"]')).toBeTruthy()
+  expect(launcherCss).toContain('touch-action: none')
+})
+
+test('hides the launcher when the area above the mobile drawer is tapped', async () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+
+  shadowRoot?.querySelector<HTMLButtonElement>('[aria-label="Close launcher"]')?.click()
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+  expect(shadowRoot?.querySelector('[data-state="closed"]')).toBeTruthy()
+})
+
+test('hides the launcher after a downward swipe from the drawer header', async () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const header = shadowRoot?.querySelector('header')
+
+  header?.dispatchEvent(
+    new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
+  )
+  header?.dispatchEvent(
+    new PointerEvent('pointermove', { bubbles: true, clientX: 24, clientY: 100, pointerId: 1 }),
+  )
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+})
+
+test('keeps the launcher open for a short or mostly horizontal header swipe', async () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const header = shadowRoot?.querySelector('header')
+
+  header?.dispatchEvent(
+    new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
+  )
+  header?.dispatchEvent(
+    new PointerEvent('pointermove', { bubbles: true, clientX: 90, clientY: 75, pointerId: 1 }),
+  )
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
 })
 
 test('uses mobile and tablet font sizes that keep the filter input readable without zooming', () => {
@@ -93,6 +145,7 @@ test('controls open, close, and toggle state', () => {
   )?.shadowRoot
 
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+  expect(shadowRoot?.querySelector('[data-state="idle"]')).toBeTruthy()
 
   launcher.open()
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()

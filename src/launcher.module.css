@@ -63,6 +63,16 @@
     position: fixed;
     right: 24px;
     width: 380px;
+
+    &[data-state='closed'],
+    &[data-state='idle'] {
+      display: none;
+    }
+  }
+
+  .dismissArea,
+  .dragHandle {
+    display: none;
   }
 
   .header {
@@ -180,7 +190,7 @@
   }
 }
 
-/* Center on mobile and tablet viewports; desktop corner placement starts above 1024px. */
+/* Use a bottom-anchored drawer on mobile and tablet viewports. */
 @media (max-width: 1024px) {
   .stateLauncher.bottom-right,
   .stateLauncher.bottom-left,
@@ -189,16 +199,54 @@
     font-size: 16px;
 
     .panel {
-      bottom: auto;
-      left: 50%;
-      max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-      max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-      max-width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
-      max-width: calc(100dvw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
-      right: auto;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 380px;
+      border-bottom: 0;
+      border-radius: 14px 14px 0 0;
+      bottom: 0;
+      left: 0;
+      max-height: calc(100vh - 20px - env(safe-area-inset-top));
+      max-height: calc(100dvh - 20px - env(safe-area-inset-top));
+      max-width: none;
+      right: 0;
+      top: calc(20px + env(safe-area-inset-top));
+      width: auto;
+
+      &[data-state='open'] {
+        animation: state-launcher-slide-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      &[data-state='closed'] {
+        animation: state-launcher-slide-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+        display: flex;
+        pointer-events: none;
+      }
+    }
+
+    .dismissArea {
+      background: transparent;
+      border: 0;
+      display: block;
+      height: calc(20px + env(safe-area-inset-top));
+      left: 0;
+      padding: 0;
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 100%;
+    }
+
+    .header {
+      padding-top: 9px;
+      touch-action: none;
+    }
+
+    .dragHandle {
+      background: var(--state-launcher-subtle-fg);
+      border-radius: 999px;
+      display: block;
+      height: 5px;
+      margin: 0 auto 8px;
+      opacity: 0.55;
+      width: 38px;
     }
 
     .header h2 {
@@ -216,6 +264,36 @@
     .commandId {
       font-size: 13px;
     }
+
+    .groups {
+      max-height: none;
+    }
+  }
+}
+
+@keyframes state-launcher-slide-in {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes state-launcher-slide-out {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .stateLauncher .panel {
+    animation-duration: 1ms;
   }
 }
 

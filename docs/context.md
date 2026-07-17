@@ -123,8 +123,9 @@ calls updated handlers without reattaching the registry handler.
 `mountStateLauncher` mounts a Shadow DOM-isolated floating launcher panel. It supports:
 
 - fixed `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions on desktop widths above `1024px`
-- viewport-centered positioning at `1024px` and below; `position` still selects the corner used when the viewport grows beyond the breakpoint
-- 16px mobile/tablet viewport spacing plus safe-area insets, with a constrained panel height and a scrolling command list
+- a fullscreen bottom drawer at `1024px` and below; `position` still selects the corner used when the viewport grows beyond the breakpoint
+- a safe-area-aware strip above the mobile/tablet drawer that closes it when tapped
+- swipe-down dismissal from the pill above the drawer title, with slide-in and slide-out transitions
 - custom panel title
 - initially open or closed state
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first
