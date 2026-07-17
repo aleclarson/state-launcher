@@ -269,7 +269,27 @@ export function subscribeCommandRecords(listener: () => void): () => void {
 export function setCommandLaunchHandler(
   command: StateLauncherCommand,
   launch: LaunchHandler,
-  retainCommand = true,
+): () => void {
+  return attachCommandLaunchHandler(command, launch, true)
+}
+
+export function registerCommandLaunchHandler(
+  command: StateLauncherCommand,
+  launch: LaunchHandler,
+): () => void {
+  const unregister = registerLaunchableState([command])
+  const detach = attachCommandLaunchHandler(command, launch, false)
+
+  return once(() => {
+    detach()
+    unregister()
+  })
+}
+
+function attachCommandLaunchHandler(
+  command: StateLauncherCommand,
+  launch: LaunchHandler,
+  retainCommand: boolean,
 ): () => void {
   const record = registerCommand(command)
 

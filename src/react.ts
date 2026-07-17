@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react'
 
 import type { LaunchableStateOptions, LaunchHandler, StateLauncherCommand } from './index'
-import { defineLaunchableState, registerLaunchableState, setCommandLaunchHandler } from './registry'
+import {
+  defineLaunchableState,
+  registerCommandLaunchHandler,
+  setCommandLaunchHandler,
+} from './registry'
 
 /** Options for a command owned and defined by one React component. */
 export type UseLaunchableStateOptions = Omit<LaunchableStateOptions, 'launch'> & {
@@ -50,17 +54,8 @@ export function useLaunchableState(
   handlerRef.current = handler
 
   useEffect(() => {
-    const unregister = isLocal ? registerLaunchableState([command]) : undefined
-    const detach = setCommandLaunchHandler(
-      command,
-      (context) => handlerRef.current(context),
-      !isLocal,
-    )
-
-    return () => {
-      detach()
-      unregister?.()
-    }
+    const attachHandler = isLocal ? registerCommandLaunchHandler : setCommandLaunchHandler
+    return attachHandler(command, (context) => handlerRef.current(context))
   }, [command, isLocal])
 
   return isLocal ? command : undefined

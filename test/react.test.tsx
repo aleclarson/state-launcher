@@ -1,4 +1,4 @@
-import { createElement, Fragment, type ReactNode } from 'react'
+import { createElement, Fragment, StrictMode, type ReactNode } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
@@ -66,6 +66,27 @@ test('defines a stable local command with the latest handler and cleans it up', 
   await render(null)
   expect(listCommandRecords()).toEqual([])
   await expect(secondCommand!.launch()).rejects.toThrow('Invalid state launcher command')
+})
+
+test('does not leak or duplicate a local command in Strict Mode', async () => {
+  const launch = vi.fn()
+
+  await render(
+    createElement(
+      StrictMode,
+      null,
+      createElement(LocalLaunchable, { handler: launch, receiveCommand: vi.fn() }),
+    ),
+  )
+
+  expect(listCommandRecords()).toMatchObject([
+    { id: 'billing.paymentFailed', hasLaunchHandler: true },
+  ])
+  await listCommandRecords()[0]!.command.launch()
+  expect(launch).toHaveBeenCalledOnce()
+
+  await render(null)
+  expect(listCommandRecords()).toEqual([])
 })
 
 test('removes its exact handler on unmount while preserving command metadata', async () => {
