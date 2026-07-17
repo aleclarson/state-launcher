@@ -68,6 +68,7 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       refreshVisibleCommands(commands, preserveSearch ? readSearchQuery() : '')
       searchNavigation.resetActiveIndex()
       setLaunchError(undefined)
+      isOpen.value = false
     } catch (error) {
       setLaunchError(error instanceof Error ? error.message : String(error))
     }
@@ -82,6 +83,9 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       if (command?.hasLaunchHandler) {
         void activateCommand(command, true)
       }
+    },
+    onEscape() {
+      isOpen.value = false
     },
     onQueryChange(nextQuery) {
       refreshVisibleCommands(commands, nextQuery)

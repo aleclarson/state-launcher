@@ -204,6 +204,23 @@ test('focuses the filter input when opened with controller', async () => {
   expect(focus).toHaveBeenCalledOnce()
 })
 
+test('hides the launcher when Escape is pressed in the filter input', async () => {
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  const escape = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    key: 'Escape',
+  })
+
+  search!.dispatchEvent(escape)
+  await nextRender()
+
+  expect(escape.defaultPrevented).toBe(true)
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+})
+
 test('hides the launcher when focus leaves the panel', async () => {
   vi.stubGlobal(
     'matchMedia',
@@ -506,7 +523,7 @@ test('activates the selected command with keyboard navigation', async () => {
   expect(secondLaunch).toHaveBeenCalledOnce()
 })
 
-test('preserves the filter and blurs the input after launching with keyboard', async () => {
+test('blurs the filter and hides the launcher after launching with keyboard', async () => {
   const blur = vi.spyOn(HTMLInputElement.prototype, 'blur')
   const launch = vi.fn()
   registerLaunchableState([
@@ -531,8 +548,7 @@ test('preserves the filter and blurs the input after launching with keyboard', a
 
   expect(launch).toHaveBeenCalledOnce()
   expect(blur).toHaveBeenCalledOnce()
-  expect(search?.value).toBe('payment')
-  expect(getLauncherShadowRoot()?.textContent).not.toContain('Many messages')
+  expect(getLauncherShadowRoot()?.querySelector('[role="dialog"]')).toBeNull()
 })
 
 test('resets the filter input after launching with click', async () => {
@@ -556,6 +572,7 @@ test('resets the filter input after launching with click', async () => {
 
   expect(launch).toHaveBeenCalledOnce()
   expect(search?.value).toBe('')
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
 })
 
 test('allows the search input to blur during mobile command activation', async () => {
@@ -591,7 +608,27 @@ test('allows the search input to blur during mobile command activation', async (
   expect(pointerDown.defaultPrevented).toBe(false)
   expect(launch).toHaveBeenCalledOnce()
   expect(focus).toHaveBeenCalledOnce()
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+})
+
+test('keeps the launcher open when a command fails to launch', async () => {
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch() {
+        throw new Error('Launch failed')
+      },
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+
+  shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')?.click()
+  await nextRender()
+
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+  expect(shadowRoot?.querySelector('[role="alert"]')?.textContent).toBe('Launch failed')
 })
 
 test('disables commands without launch handlers', async () => {
