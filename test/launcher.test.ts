@@ -27,39 +27,38 @@ afterEach(() => {
   clearCommands()
 })
 
-test.each([
-  ['bottom-right', { bottom: '24px', left: '', right: '24px', top: '' }],
-  ['bottom-left', { bottom: '24px', left: '24px', right: '', top: '' }],
-  ['top-right', { bottom: '', left: '', right: '24px', top: '24px' }],
-  ['top-left', { bottom: '', left: '24px', right: '', top: '24px' }],
-] as const)('mounts the launcher into its %s desktop corner', (position, expectedStyles) => {
-  const target = document.createElement('main')
-  document.body.append(target)
+test.each(['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const)(
+  'renders the %s launcher from a full-viewport host',
+  (position) => {
+    const target = document.createElement('main')
+    document.body.append(target)
 
-  const launcher = mountStateLauncher({
-    target,
-    initiallyOpen: true,
-    position,
-    title: 'Debug states',
-  })
-  const host = target.querySelector<HTMLElement>('[data-state-launcher-host="true"]')
-  const shadowRoot = host?.shadowRoot
+    const launcher = mountStateLauncher({
+      target,
+      initiallyOpen: true,
+      position,
+      title: 'Debug states',
+    })
+    const host = target.querySelector<HTMLElement>('[data-state-launcher-host="true"]')
+    const shadowRoot = host?.shadowRoot
 
-  expect(host).toBeTruthy()
-  expect(shadowRoot).toBeTruthy()
-  expect(host?.style.position).toBe('fixed')
-  expect(host?.style.zIndex).toBe('2147483647')
-  expect(host?.style.bottom).toBe(expectedStyles.bottom)
-  expect(host?.style.left).toBe(expectedStyles.left)
-  expect(host?.style.right).toBe(expectedStyles.right)
-  expect(host?.style.top).toBe(expectedStyles.top)
-  expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
-    position,
-  )
-  expect(shadowRoot?.querySelector('[role="dialog"]')?.textContent).toContain('Debug states')
+    expect(host).toBeTruthy()
+    expect(shadowRoot).toBeTruthy()
+    expect(host?.style.position).toBe('fixed')
+    expect(host?.style.zIndex).toBe('2147483647')
+    expect(host?.style.bottom).toBe('0px')
+    expect(host?.style.left).toBe('0px')
+    expect(host?.style.pointerEvents).toBe('none')
+    expect(host?.style.right).toBe('0px')
+    expect(host?.style.top).toBe('0px')
+    expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
+      position,
+    )
+    expect(shadowRoot?.querySelector('[role="dialog"]')?.textContent).toContain('Debug states')
 
-  launcher.unmount()
-})
+    launcher.unmount()
+  },
+)
 
 test('fixes the mobile drawer container to the visible viewport', () => {
   mountStateLauncher({ initiallyOpen: true })

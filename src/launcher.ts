@@ -27,7 +27,7 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
     hostAttributes: {
       'data-state-launcher-host': 'true',
     },
-    hostStyles: getHostStyles(position),
+    hostStyles: getHostStyles(),
     zIndex: 2147483647,
   })
   const isOpen = signal(Boolean(options.initiallyOpen))
@@ -71,33 +71,15 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
   }
 }
 
-function getHostStyles(
-  position: NonNullable<MountStateLauncherOptions['position']>,
-): Partial<CSSStyleDeclaration> {
-  switch (position) {
-    case 'bottom-left':
-      return {
-        bottom: '24px',
-        left: '24px',
-        position: 'fixed',
-      }
-    case 'top-left':
-      return {
-        left: '24px',
-        position: 'fixed',
-        top: '24px',
-      }
-    case 'top-right':
-      return {
-        position: 'fixed',
-        right: '24px',
-        top: '24px',
-      }
-    case 'bottom-right':
-      return {
-        bottom: '24px',
-        position: 'fixed',
-        right: '24px',
-      }
+function getHostStyles(): Partial<CSSStyleDeclaration> {
+  // The panel owns its corner/drawer placement. Keeping the host viewport-sized
+  // avoids carrying a desktop corner offset through mobile keyboard resizes.
+  return {
+    bottom: '0',
+    left: '0',
+    pointerEvents: 'none',
+    position: 'fixed',
+    right: '0',
+    top: '0',
   }
 }
