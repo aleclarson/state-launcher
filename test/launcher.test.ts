@@ -28,7 +28,7 @@ afterEach(() => {
 })
 
 test.each(['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const)(
-  'renders the %s launcher from a full-viewport host',
+  'renders the %s launcher from a non-blocking host',
   (position) => {
     const target = document.createElement('main')
     document.body.append(target)
@@ -46,11 +46,13 @@ test.each(['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const)(
     expect(shadowRoot).toBeTruthy()
     expect(host?.style.position).toBe('fixed')
     expect(host?.style.zIndex).toBe('2147483647')
-    expect(host?.style.bottom).toBe('0px')
+    expect(host?.style.bottom).toBe('')
+    expect(host?.style.height).toBe('0px')
     expect(host?.style.left).toBe('0px')
-    expect(host?.style.pointerEvents).toBe('none')
-    expect(host?.style.right).toBe('0px')
+    expect(host?.style.pointerEvents).toBe('')
+    expect(host?.style.right).toBe('')
     expect(host?.style.top).toBe('0px')
+    expect(host?.style.width).toBe('0px')
     expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
       position,
     )

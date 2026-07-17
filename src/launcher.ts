@@ -72,14 +72,13 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
 }
 
 function getHostStyles(): Partial<CSSStyleDeclaration> {
-  // The panel owns its corner/drawer placement. Keeping the host viewport-sized
-  // avoids carrying a desktop corner offset through mobile keyboard resizes.
+  // The panel owns its corner/drawer placement. A zero-sized top-left host avoids
+  // both carrying a corner offset through keyboard resizes and blocking app input.
   return {
-    bottom: '0',
+    height: '0',
     left: '0',
-    pointerEvents: 'none',
     position: 'fixed',
-    right: '0',
     top: '0',
+    width: '0',
   }
 }
