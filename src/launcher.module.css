@@ -186,6 +186,8 @@
   .stateLauncher.bottom-left,
   .stateLauncher.top-right,
   .stateLauncher.top-left {
+    font-size: 16px;
+
     .panel {
       bottom: auto;
       left: 50%;
@@ -197,6 +199,22 @@
       top: 50%;
       transform: translate(-50%, -50%);
       width: 380px;
+    }
+
+    .header h2 {
+      font-size: 16px;
+    }
+
+    .groupTitle {
+      font-size: 14px;
+    }
+
+    .commandDescription {
+      font-size: 14px;
+    }
+
+    .commandId {
+      font-size: 13px;
     }
   }
 }

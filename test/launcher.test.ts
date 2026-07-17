@@ -76,6 +76,16 @@ test('uses a fixed panel with deterministic mobile and tablet viewport constrain
   expect(launcherCss).not.toContain('position: absolute')
 })
 
+test('uses mobile and tablet font sizes that keep the filter input readable without zooming', () => {
+  expect(launcherCss).toMatch(
+    /@media \(max-width: 1024px\)[\s\S]*?\.stateLauncher\.bottom-right[\s\S]*?font-size: 16px/,
+  )
+  expect(launcherCss).toMatch(/\.header h2 \{\s*font-size: 16px/)
+  expect(launcherCss).toMatch(/\.groupTitle \{\s*font-size: 14px/)
+  expect(launcherCss).toMatch(/\.commandDescription \{\s*font-size: 14px/)
+  expect(launcherCss).toMatch(/\.commandId \{\s*font-size: 13px/)
+})
+
 test('controls open, close, and toggle state', () => {
   const launcher = mountStateLauncher()
   const shadowRoot = document.querySelector<HTMLElement>(
