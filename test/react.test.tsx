@@ -2,7 +2,12 @@ import { createElement, Fragment, StrictMode, type ReactNode } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import { clearCommands, defineLaunchableState, type LaunchHandler } from '../src/index'
+import {
+  clearCommands,
+  defineLaunchableState,
+  mountStateLauncher,
+  type LaunchHandler,
+} from '../src/index'
 import { useLaunchableState } from '../src/react'
 import { getCommandRecord, listCommandRecords, setCommandLaunchHandler } from '../src/registry'
 
@@ -66,6 +71,26 @@ test('defines a stable local command with the latest handler and cleans it up', 
   await render(null)
   expect(listCommandRecords()).toEqual([])
   await expect(secondCommand!.launch()).rejects.toThrow('Invalid state launcher command')
+})
+
+test('registers a local command with an already-mounted launcher UI', async () => {
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+
+  await render(
+    createElement(LocalLaunchable, {
+      handler: vi.fn(),
+      receiveCommand: vi.fn(),
+    }),
+  )
+
+  await new Promise<void>((resolve) => queueMicrotask(resolve))
+
+  const shadowRoot = document.querySelector<HTMLElement>(
+    '[data-state-launcher-host="true"]',
+  )?.shadowRoot
+  expect(shadowRoot?.textContent).toContain('Payment failed')
+
+  launcher.unmount()
 })
 
 test('does not leak or duplicate a local command in Strict Mode', async () => {

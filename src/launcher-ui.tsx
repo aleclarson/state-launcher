@@ -31,6 +31,7 @@ type LaunchHistory = Record<string, number[]>
 
 export function LauncherShell({ isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
+  const commandsRef = useRef(commands)
   const [launchError, setLaunchError] = useState<string>()
   const launcherRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -167,16 +168,26 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
     }
   }
 
-  useEffect(
-    () =>
-      subscribeCommandRecords(() => {
-        const nextCommands = listCommandRecords()
-        setCommands(nextCommands)
-        refreshVisibleCommands(nextCommands)
-        searchNavigation.resetActiveIndex()
-      }),
-    [searchNavigation],
-  )
+  useEffect(() => {
+    const refreshCommands = () => {
+      const nextCommands = listCommandRecords()
+
+      if (haveMatchingCommandSnapshots(commandsRef.current, nextCommands)) {
+        return
+      }
+
+      commandsRef.current = nextCommands
+      setCommands(nextCommands)
+      refreshVisibleCommands(nextCommands)
+      searchNavigation.resetActiveIndex()
+    }
+    const unsubscribe = subscribeCommandRecords(refreshCommands)
+
+    // Commands registered after the initial render but before this effect ran
+    // would otherwise be missed until the registry changed again.
+    refreshCommands()
+    return unsubscribe
+  }, [searchNavigation])
 
   useLayoutEffect(() => {
     if (isLauncherOpen) {
@@ -307,6 +318,20 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
         </section>
       </>
     </div>
+  )
+}
+
+function haveMatchingCommandSnapshots(
+  currentCommands: readonly CommandRecordSnapshot[],
+  nextCommands: readonly CommandRecordSnapshot[],
+): boolean {
+  return (
+    currentCommands.length === nextCommands.length &&
+    currentCommands.every(
+      (command, index) =>
+        command.command === nextCommands[index]?.command &&
+        command.hasLaunchHandler === nextCommands[index]?.hasLaunchHandler,
+    )
   )
 }
 

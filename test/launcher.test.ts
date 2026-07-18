@@ -297,6 +297,20 @@ test('renders registered commands grouped by id prefix', () => {
   expect(shadowRoot?.textContent).toContain('Reset app')
 })
 
+test('discovers a command registered while the launcher subscription is mounting', async () => {
+  mountStateLauncher({ initiallyOpen: true })
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: vi.fn(),
+    }),
+  ])
+
+  await nextRender()
+
+  expect(getLauncherShadowRoot()?.textContent).toContain('Payment failed')
+})
+
 test('filters commands with fuzzysort2', async () => {
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
