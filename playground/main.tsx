@@ -78,6 +78,22 @@ const commands = [
       })
     },
   }),
+  defineLaunchableState('playground.slowLaunch', {
+    label: 'Slow launch',
+    description: 'Waits five seconds so the pending launch spinner can be inspected.',
+    tags: ['playground', 'pending', 'spinner', 'slow'],
+    async launch({ signal }) {
+      emitScenario({
+        name: 'Slow launch pending',
+        description: 'Keep the launcher open to inspect its pending command treatment.',
+      })
+      await sleep(5000, signal)
+      emitScenario({
+        name: 'Slow launch complete',
+        description: 'The five-second playground launch completed successfully.',
+      })
+    },
+  }),
   defineLaunchableState('inbox.launchError', {
     label: 'Launch error',
     description: 'Throws to verify launcher error display.',
