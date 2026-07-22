@@ -34,9 +34,11 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   const [commands, setCommands] = useState(() => listCommandRecords())
   const commandsRef = useRef(commands)
   const [launchError, setLaunchError] = useState<string>()
+  const [pendingCommandId, setPendingCommandId] = useState<string>()
   const [isAuthPending, setIsAuthPending] = useState(false)
   const [isSignedIn, setIsSignedIn] = useState(true)
   const launcherRef = useRef<HTMLDivElement | null>(null)
+  const pendingCommandIdRef = useRef<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
@@ -77,6 +79,14 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   }
 
   async function activateCommand(command: CommandRecordSnapshot, preserveSearch = false) {
+    if (pendingCommandIdRef.current) {
+      return
+    }
+
+    pendingCommandIdRef.current = command.id
+    setPendingCommandId(command.id)
+    setLaunchError(undefined)
+
     try {
       if (preserveSearch) {
         searchInputRef.current?.blur()
@@ -93,6 +103,9 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
       isOpen.value = false
     } catch (error) {
       setLaunchError(error instanceof Error ? error.message : String(error))
+    } finally {
+      pendingCommandIdRef.current = undefined
+      setPendingCommandId(undefined)
     }
   }
 
@@ -333,6 +346,11 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
             ref={registerSearchInput}
             type="search"
           />
+          <div aria-live="polite" aria-atomic="true" class={styles.visuallyHidden} role="status">
+            {pendingCommandId
+              ? `Launching ${commands.find((command) => command.id === pendingCommandId)?.label ?? pendingCommandId}…`
+              : ''}
+          </div>
           {launchError ? (
             <div class={styles.error} role="alert">
               {launchError}
@@ -349,15 +367,22 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                   <h3 class={styles.groupTitle}>{group.name}</h3>
                   <div class={styles.items}>
                     {group.commands.map(({ command, index }) => {
-                      const className = command.hasLaunchHandler
-                        ? styles.command
-                        : `${styles.command} ${styles.disabled}`
+                      const isPending = pendingCommandId === command.id
+                      let className = styles.command
+
+                      if (!command.hasLaunchHandler) {
+                        className += ` ${styles.disabled}`
+                      }
+                      if (isPending) {
+                        className += ` ${styles.pending}`
+                      }
 
                       return (
                         <button
-                          aria-disabled={!command.hasLaunchHandler}
+                          aria-disabled={Boolean(pendingCommandId) || !command.hasLaunchHandler}
+                          aria-busy={isPending || undefined}
                           class={className}
-                          disabled={!command.hasLaunchHandler}
+                          disabled={Boolean(pendingCommandId) || !command.hasLaunchHandler}
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)
@@ -366,7 +391,10 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                           role="option"
                           type="button"
                         >
-                          <span class={styles.commandLabel}>{command.label ?? command.id}</span>
+                          <span class={styles.commandHeading}>
+                            <span class={styles.commandLabel}>{command.label ?? command.id}</span>
+                            {isPending ? <span aria-hidden="true" class={styles.spinner} /> : null}
+                          </span>
                           {command.description ? (
                             <span class={styles.commandDescription}>{command.description}</span>
                           ) : null}

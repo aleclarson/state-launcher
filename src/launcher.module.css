@@ -143,6 +143,16 @@
     padding: 14px;
   }
 
+  .visuallyHidden {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
   .searchInput {
     background: var(--state-launcher-panel-bg);
     border: 0;
@@ -219,10 +229,31 @@
       }
     }
 
+    &.pending {
+      cursor: wait;
+    }
+
     &:focus-visible {
       outline: 2px solid var(--state-launcher-focus);
       outline-offset: -2px;
     }
+  }
+
+  .commandHeading {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .spinner {
+    animation: state-launcher-spin 700ms linear infinite;
+    border: 2px solid var(--state-launcher-border);
+    border-radius: 50%;
+    border-top-color: var(--state-launcher-muted-fg);
+    flex-shrink: 0;
+    height: 14px;
+    width: 14px;
   }
 
   .commandLabel {
@@ -238,6 +269,12 @@
     color: var(--state-launcher-subtle-fg);
     font-size: 11px;
     overflow-wrap: anywhere;
+  }
+}
+
+@keyframes state-launcher-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -355,6 +392,10 @@
 @media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
   .stateLauncher .panel {
     animation-duration: 1ms;
+  }
+
+  .stateLauncher .spinner {
+    animation-duration: 2s;
   }
 }
 

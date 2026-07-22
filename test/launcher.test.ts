@@ -630,6 +630,44 @@ test('activates the selected command with keyboard navigation', async () => {
   expect(secondLaunch).toHaveBeenCalledOnce()
 })
 
+test('shows pending launch feedback and prevents duplicate activation', async () => {
+  let finishLaunch: (() => void) | undefined
+  const launch = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finishLaunch = resolve
+      }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch,
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const command = shadowRoot?.querySelector<HTMLButtonElement>('[role="option"]')
+
+  command?.click()
+  await nextRender()
+
+  expect(command?.disabled).toBe(true)
+  expect(command?.getAttribute('aria-busy')).toBe('true')
+  expect(command?.querySelector('[aria-hidden="true"]')).toBeTruthy()
+  expect(shadowRoot?.querySelector('[role="status"]')?.textContent).toBe(
+    'Launching Payment failed…',
+  )
+
+  command?.click()
+  expect(launch).toHaveBeenCalledOnce()
+
+  finishLaunch?.()
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+})
+
 test('blurs the filter and hides the launcher after launching with keyboard', async () => {
   const blur = vi.spyOn(HTMLInputElement.prototype, 'blur')
   const launch = vi.fn()
