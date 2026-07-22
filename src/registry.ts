@@ -50,15 +50,28 @@ type CommandRegistry = {
 }
 
 type ActiveLaunch = {
+  cleanupScopes: Set<LaunchCleanupScope>
   controller: AbortController
-  context: LaunchContext
+  disposePromise?: Promise<void>
+  disposed: boolean
   id: string
+}
+
+type LaunchCleanupScope = {
+  cleanupErrors: unknown[]
+  cleanups: LaunchCleanup[]
+  closed: boolean
+  disposePromise?: Promise<unknown[]>
+  disposed: boolean
+  handlerSettled: boolean
+  lateCleanupErrors: unknown[]
+  lateCleanupTasks: Set<Promise<void>>
+  pendingCleanups: Set<Promise<void>>
 }
 
 let registry: CommandRegistry = createRegistry()
 let unregisteredCommands = new WeakSet<StateLauncherCommand>()
 let activeLaunch: ActiveLaunch | undefined
-let activeLaunchCleanups: LaunchCleanup[] = []
 
 /**
  * Define a launchable state command.
@@ -172,12 +185,12 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
     throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  const context = await activateCommand(id)
+  const activeLaunch = await activateCommand(id)
 
   // Snapshot handlers so continuations attached during this launch replay once
   // through active-state handling instead of being visited by Set iteration too.
   for (const launch of launchHandlers) {
-    await runLaunchHandler(launch, id, context)
+    await runLaunchHandler(launch, activeLaunch)
   }
 }
 
@@ -187,15 +200,11 @@ export async function clearActiveState(): Promise<void> {
     return
   }
 
-  const cleanups = activeLaunchCleanups
-  activeLaunch.controller.abort()
+  const launch = activeLaunch
   activeLaunch = undefined
-  activeLaunchCleanups = []
 
   try {
-    for (const cleanup of cleanups) {
-      await cleanup()
-    }
+    await disposeActiveLaunch(launch)
   } finally {
     notifyCommandListeners()
   }
@@ -248,9 +257,11 @@ export function clearCommands(): void {
     ...createRegistry(),
     listeners,
   }
-  activeLaunch?.controller.abort()
+  const launch = activeLaunch
   activeLaunch = undefined
-  activeLaunchCleanups = []
+  if (launch) {
+    void disposeActiveLaunch(launch).catch(reportUnhandledError)
+  }
   notifyCommandListeners()
 }
 
@@ -325,7 +336,7 @@ function attachCommandLaunchHandler(
   if (record.id === activeLaunch?.id) {
     // A command can reveal more UI as it launches; newly mounted handlers for
     // the active state continue that launch immediately.
-    void runLaunchHandler(launch, record.id, activeLaunch.context)
+    void runLaunchHandler(launch, activeLaunch).catch(reportUnhandledError)
   }
 
   return () => {
@@ -485,59 +496,234 @@ function notifyCommandListeners(): void {
 
 function clearActiveCommand(id: string): void {
   if (activeLaunch?.id === id) {
-    activeLaunch.controller.abort()
+    const launch = activeLaunch
     activeLaunch = undefined
-    activeLaunchCleanups = []
+    void disposeActiveLaunch(launch).catch(reportUnhandledError)
   }
 }
 
-async function activateCommand(id: string): Promise<LaunchContext> {
+async function activateCommand(id: string): Promise<ActiveLaunch> {
   if (activeLaunch?.id === id) {
-    return activeLaunch.context
+    return activeLaunch
   }
 
-  const cleanups = activeLaunchCleanups
-  activeLaunch?.controller.abort()
+  const previousLaunch = activeLaunch
   const controller = new AbortController()
-  const context: LaunchContext = {
-    signal: controller.signal,
-  }
-  activeLaunch = {
+  const launch: ActiveLaunch = {
+    cleanupScopes: new Set(),
     controller,
-    context,
+    disposed: false,
     id,
   }
-  activeLaunchCleanups = []
+  activeLaunch = launch
   notifyCommandListeners()
 
-  for (const cleanup of cleanups) {
-    await cleanup()
+  if (previousLaunch) {
+    await disposeActiveLaunch(previousLaunch)
   }
 
-  return context
+  return launch
 }
 
-async function runLaunchHandler(
-  launch: LaunchHandler,
-  id: string,
-  context: LaunchContext,
-): Promise<void> {
-  const cleanup = await launch(context)
-
-  if (!isLaunchCleanup(cleanup)) {
-    return
+async function runLaunchHandler(launch: LaunchHandler, activeLaunch: ActiveLaunch): Promise<void> {
+  const scope = createLaunchCleanupScope(activeLaunch.disposed)
+  if (!scope.closed) {
+    activeLaunch.cleanupScopes.add(scope)
+  }
+  const context: LaunchContext = {
+    signal: activeLaunch.controller.signal,
+    defer(cleanup) {
+      registerLaunchCleanup(scope, cleanup)
+    },
   }
 
-  if (activeLaunch?.id === id && activeLaunch.context === context && !context.signal.aborted) {
-    activeLaunchCleanups.push(cleanup)
-    return
+  let cleanup: void | LaunchCleanup = undefined
+
+  try {
+    cleanup = await launch(context)
+  } catch (error) {
+    activeLaunch.cleanupScopes.delete(scope)
+    const cleanupErrors = scope.closed ? [] : await disposeLaunchCleanupScope(scope)
+    const lateCleanupErrors = await settleLaunchCleanupScope(scope)
+    throwCombinedErrors(
+      [error, ...cleanupErrors, ...lateCleanupErrors],
+      'Launch handler and cleanup failed.',
+    )
   }
 
-  await cleanup()
+  if (isLaunchCleanup(cleanup)) {
+    registerLaunchCleanup(scope, cleanup)
+  }
+
+  const lateCleanupErrors = await settleLaunchCleanupScope(scope)
+  if (lateCleanupErrors.length > 0) {
+    throwCombinedErrors(lateCleanupErrors, 'Launch cleanup failed.')
+  }
 }
 
 function isLaunchCleanup(cleanup: unknown): cleanup is LaunchCleanup {
   return typeof cleanup === 'function'
+}
+
+function createLaunchCleanupScope(closed: boolean): LaunchCleanupScope {
+  return {
+    cleanupErrors: [],
+    cleanups: [],
+    closed,
+    disposed: closed,
+    handlerSettled: false,
+    lateCleanupErrors: [],
+    lateCleanupTasks: new Set(),
+    pendingCleanups: new Set(),
+  }
+}
+
+function registerLaunchCleanup(scope: LaunchCleanupScope, cleanup: LaunchCleanup): void {
+  if (!isLaunchCleanup(cleanup)) {
+    throw new TypeError('Launch cleanup must be a function.')
+  }
+
+  if (!scope.closed) {
+    scope.cleanups.push(cleanup)
+    return
+  }
+
+  if (!scope.disposed) {
+    trackLaunchCleanup(scope.pendingCleanups, scope.cleanupErrors, cleanup)
+    return
+  }
+
+  if (!scope.handlerSettled) {
+    trackLaunchCleanup(scope.lateCleanupTasks, scope.lateCleanupErrors, cleanup)
+    return
+  }
+
+  void invokeLaunchCleanup(cleanup).catch(reportUnhandledError)
+}
+
+function disposeActiveLaunch(launch: ActiveLaunch): Promise<void> {
+  if (launch.disposePromise) {
+    return launch.disposePromise
+  }
+
+  let resolveDispose!: () => void
+  let rejectDispose!: (error: unknown) => void
+  const disposePromise = new Promise<void>((resolve, reject) => {
+    resolveDispose = resolve
+    rejectDispose = reject
+  })
+  launch.disposePromise = disposePromise
+  launch.disposed = true
+
+  const scopes = [...launch.cleanupScopes]
+  launch.cleanupScopes.clear()
+  for (const scope of scopes) {
+    scope.closed = true
+  }
+  launch.controller.abort()
+
+  void (async () => {
+    const cleanupErrors: unknown[] = []
+
+    for (const scope of scopes) {
+      cleanupErrors.push(...(await disposeLaunchCleanupScope(scope)))
+    }
+
+    throwCombinedErrors(cleanupErrors, 'Launch cleanup failed.')
+  })().then(resolveDispose, rejectDispose)
+
+  return disposePromise
+}
+
+function disposeLaunchCleanupScope(scope: LaunchCleanupScope): Promise<unknown[]> {
+  if (scope.disposePromise) {
+    return scope.disposePromise
+  }
+
+  let resolveDispose!: (errors: unknown[]) => void
+  let rejectDispose!: (error: unknown) => void
+  const disposePromise = new Promise<unknown[]>((resolve, reject) => {
+    resolveDispose = resolve
+    rejectDispose = reject
+  })
+  scope.disposePromise = disposePromise
+  scope.closed = true
+
+  const cleanups = scope.cleanups.splice(0).reverse()
+
+  void (async () => {
+    for (const cleanup of cleanups) {
+      await trackLaunchCleanup(scope.pendingCleanups, scope.cleanupErrors, cleanup)
+    }
+
+    await waitForLaunchCleanups(scope.pendingCleanups)
+    scope.disposed = true
+
+    return scope.cleanupErrors.splice(0)
+  })().then(resolveDispose, rejectDispose)
+
+  return disposePromise
+}
+
+async function settleLaunchCleanupScope(scope: LaunchCleanupScope): Promise<unknown[]> {
+  await waitForLaunchCleanups(scope.lateCleanupTasks)
+  scope.handlerSettled = true
+  return scope.lateCleanupErrors.splice(0)
+}
+
+function trackLaunchCleanup(
+  tasks: Set<Promise<void>>,
+  errors: unknown[],
+  cleanup: LaunchCleanup,
+): Promise<void> {
+  let task: Promise<void>
+  task = invokeLaunchCleanup(cleanup)
+    .catch((error: unknown) => {
+      errors.push(error)
+    })
+    .finally(() => {
+      tasks.delete(task)
+    })
+  tasks.add(task)
+  return task
+}
+
+async function waitForLaunchCleanups(tasks: Set<Promise<void>>): Promise<void> {
+  while (tasks.size > 0) {
+    await Promise.all(tasks)
+  }
+}
+
+function invokeLaunchCleanup(cleanup: LaunchCleanup): Promise<void> {
+  try {
+    return Promise.resolve(cleanup())
+  } catch (error) {
+    return Promise.reject(error)
+  }
+}
+
+function throwCombinedErrors(errors: unknown[], message: string): void {
+  if (errors.length === 1) {
+    throw errors[0]
+  }
+
+  if (errors.length > 1) {
+    throw new AggregateError(errors, message)
+  }
+}
+
+function reportUnhandledError(error: unknown): void {
+  const reportError = (globalThis as typeof globalThis & { reportError?: (error: unknown) => void })
+    .reportError
+
+  if (reportError) {
+    reportError(error)
+    return
+  }
+
+  setTimeout(() => {
+    throw error
+  })
 }
 
 function once(callback: () => void): () => void {

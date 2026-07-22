@@ -200,6 +200,29 @@ different command id is activated, before the new state's launch handlers run.
 That lets a launched state undo temporary setup when the launcher moves to
 another state.
 
+For async setup, register cleanup as soon as each resource is acquired with
+`defer()`. Deferred cleanup is retained after successful setup, runs in reverse
+registration order, and also runs if setup later throws or the launch is aborted
+while the handler is still pending:
+
+```ts
+const paymentFailed = defineLaunchableState('billing.paymentFailed', {
+  async launch({ defer, signal }) {
+    const authOverride = installTestAuthOverride()
+    defer(() => authOverride.dispose())
+
+    const paymentMethod = await createFailedPaymentMethod({ signal })
+    defer(() => paymentMethod.remove())
+
+    await navigateToBilling()
+  },
+})
+```
+
+A cleanup registered after the signal has already aborted starts immediately.
+Each registration runs at most once. Handlers may continue returning one cleanup
+function; it behaves as the handler's final cleanup registration.
+
 Launch handlers receive a context with an `AbortSignal`. The signal aborts when
 another command id is activated or the active command is cleared, so async setup
 can cancel stale work. If an aborted handler eventually returns a cleanup

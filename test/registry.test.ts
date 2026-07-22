@@ -163,6 +163,178 @@ test('runs launch cleanups when another state is activated', async () => {
   expect(calls).toEqual(['cleanup', 'second launch'])
 })
 
+test('runs deferred cleanups while a launch handler is still pending', async () => {
+  const calls: string[] = []
+  let finishFirstLaunch: (() => void) | undefined
+  const first = defineLaunchableState('billing.paymentFailed', {
+    async launch({ defer }) {
+      calls.push('first launch')
+      defer(() => {
+        calls.push('first cleanup')
+      })
+      await new Promise<void>((resolve) => {
+        finishFirstLaunch = resolve
+      })
+    },
+  })
+  const second = defineLaunchableState('inbox.manyMessages', {
+    launch() {
+      calls.push('second launch')
+    },
+  })
+  registerLaunchableState([first, second])
+
+  const firstLaunch = first.launch()
+  await Promise.resolve()
+  await second.launch()
+
+  expect(calls).toEqual(['first launch', 'first cleanup', 'second launch'])
+
+  finishFirstLaunch?.()
+  await firstLaunch
+})
+
+test('runs handler cleanups in reverse registration order', async () => {
+  const calls: string[] = []
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(() => {
+        calls.push('first deferred cleanup')
+      })
+      defer(() => {
+        calls.push('second deferred cleanup')
+      })
+      return () => {
+        calls.push('returned cleanup')
+      }
+    },
+  })
+
+  await command.launch()
+  await clearActiveState()
+
+  expect(calls).toEqual(['returned cleanup', 'second deferred cleanup', 'first deferred cleanup'])
+})
+
+test('cleans partial setup when a launch handler throws', async () => {
+  const error = new Error('Host launch failed.')
+  const calls: string[] = []
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(() => {
+        calls.push('first cleanup')
+      })
+      defer(() => {
+        calls.push('second cleanup')
+      })
+      throw error
+    },
+  })
+
+  await expect(command.launch()).rejects.toBe(error)
+
+  expect(calls).toEqual(['second cleanup', 'first cleanup'])
+})
+
+test('runs cleanup registered after abort immediately and once', async () => {
+  let finishSetup: (() => void) | undefined
+  const cleanup = vi.fn()
+  const first = defineLaunchableState('billing.paymentFailed', {
+    async launch({ defer }) {
+      await new Promise<void>((resolve) => {
+        finishSetup = resolve
+      })
+      defer(cleanup)
+    },
+  })
+  const second = defineLaunchableState('inbox.manyMessages', { launch: vi.fn() })
+  registerLaunchableState([first, second])
+
+  const firstLaunch = first.launch()
+  await Promise.resolve()
+  await second.launch()
+
+  finishSetup?.()
+  await firstLaunch
+
+  expect(cleanup).toHaveBeenCalledOnce()
+
+  await clearActiveState()
+  expect(cleanup).toHaveBeenCalledOnce()
+})
+
+test('attempts every deferred cleanup and aggregates failures', async () => {
+  const firstError = new Error('First cleanup failed.')
+  const secondError = new Error('Second cleanup failed.')
+  const firstCleanup = vi.fn(() => {
+    throw firstError
+  })
+  const secondCleanup = vi.fn(() => {
+    throw secondError
+  })
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(firstCleanup)
+      defer(secondCleanup)
+    },
+  })
+
+  await command.launch()
+
+  const cleanupResult = clearActiveState()
+  await expect(cleanupResult).rejects.toMatchObject({
+    errors: [secondError, firstError],
+  })
+  expect(secondCleanup).toHaveBeenCalledOnce()
+  expect(firstCleanup).toHaveBeenCalledOnce()
+})
+
+test('aggregates launch and deferred cleanup failures', async () => {
+  const launchError = new Error('Host launch failed.')
+  const cleanupError = new Error('Host cleanup failed.')
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(() => {
+        throw cleanupError
+      })
+      throw launchError
+    },
+  })
+
+  await expect(command.launch()).rejects.toMatchObject({
+    errors: [launchError, cleanupError],
+  })
+})
+
+test('runs deferred cleanup when an active command is unregistered', async () => {
+  const cleanup = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(cleanup)
+    },
+  })
+  registerLaunchableState([command])
+
+  await command.launch()
+  unregisterCommand(command)
+
+  expect(cleanup).toHaveBeenCalledOnce()
+})
+
+test('runs deferred cleanup when the registry is cleared', async () => {
+  const cleanup = vi.fn()
+  const command = defineLaunchableState('billing.paymentFailed', {
+    launch({ defer }) {
+      defer(cleanup)
+    },
+  })
+
+  await command.launch()
+  clearCommands()
+
+  expect(cleanup).toHaveBeenCalledOnce()
+})
+
 test('clears the active state without unregistering its command', async () => {
   let launchSignal: AbortSignal | undefined
   const cleanup = vi.fn()

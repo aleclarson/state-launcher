@@ -68,7 +68,11 @@ When a command is launched, it becomes the active state. If a handler is attache
 
 Handlers receive a context with an `AbortSignal`. The signal aborts when a different command id becomes active or the active command is cleared. Use it to cancel stale async setup, such as server-side fake-scenario creation, when another state is launched before setup finishes.
 
-Handlers may return cleanup functions. Returned cleanup functions run when a different command id becomes active, before the new state's launch handlers run. Relaunching the same command id does not run cleanup; the state is cleaned up when the launcher moves to another state. If an aborted handler eventually returns a cleanup function, the launcher runs it immediately instead of retaining it for the new active state.
+Handlers can call `defer(cleanup)` as each setup resource is acquired. Deferred cleanups run in reverse registration order for that handler when a different command id becomes active or the active state is cleared. If the handler throws, its deferred cleanups run before the launch error propagates. Successful handler cleanups remain owned by the active state. Registering cleanup after the signal has already aborted starts that cleanup immediately, and every registration runs at most once.
+
+Handlers may also return one cleanup function. A returned cleanup behaves as that handler's final registration, so it runs before cleanups deferred earlier by the same handler. Relaunching the same command id does not run cleanup; each invocation contributes another cleanup scope to the existing active state. Ordering between different handlers is intentionally unspecified.
+
+Cleanup callbacks may be async. State transitions and `clearActiveState()` await cleanup known to those operations. Synchronous registry-removal operations such as `unregisterCommand()` and `clearCommands()` start cleanup but do not await async completion. A cleanup registered after an earlier teardown has already completed likewise starts immediately but cannot extend the completed operation.
 
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 

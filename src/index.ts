@@ -62,13 +62,18 @@ export type StateLauncherCommand<Id extends string = string> = {
   launch(): Promise<void>
 }
 
-/** Cleanup returned by a launch handler while its state is active. */
+/** Cleanup registered or returned by a launch handler while its state is active. */
 export type LaunchCleanup = () => void | Promise<void>
 
-/** Per-launch context passed to launch handlers. */
+/** Per-handler context for one active launch. */
 export type LaunchContext = {
   /** Aborted when a different command id is activated or the active command is cleared. */
   readonly signal: AbortSignal
+  /**
+   * Register cleanup as setup resources are acquired. Deferred cleanups run in
+   * reverse registration order. Cleanup registered after abort starts immediately.
+   */
+  defer(cleanup: LaunchCleanup): void
 }
 
 /** Handler that puts the host application into a launchable state. */
