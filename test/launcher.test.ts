@@ -80,6 +80,17 @@ test('fixes the mobile drawer container to the visible viewport', () => {
   expect(launcherCss).toContain('state-launcher-slide-out')
 })
 
+test('animates the desktop launcher in from the right', () => {
+  expect(launcherCss).toContain('@media (min-width: 1025px)')
+  expect(launcherCss).toContain(
+    'animation: state-launcher-desktop-enter 140ms cubic-bezier(0.22, 1, 0.36, 1) both',
+  )
+  expect(launcherCss).toMatch(
+    /@keyframes state-launcher-desktop-enter \{[\s\S]*?opacity: 0;[\s\S]*?transform: translateX\(14px\);[\s\S]*?opacity: 1;[\s\S]*?transform: translateX\(0\);/,
+  )
+  expect(launcherCss).toContain('@media (min-width: 1025px) and (prefers-reduced-motion: reduce)')
+})
+
 test('contains command list overscroll inside the launcher', () => {
   expect(launcherCss).toMatch(/\.groups \{[\s\S]*?overscroll-behavior: contain/)
 })
