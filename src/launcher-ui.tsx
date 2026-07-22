@@ -21,6 +21,7 @@ const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
 
 export type LauncherProps = {
+  auth?: MountStateLauncherOptions['auth']
   isOpen: Signal<boolean>
   position: NonNullable<MountStateLauncherOptions['position']>
   title: string
@@ -29,10 +30,12 @@ export type LauncherProps = {
 type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
 
-export function LauncherShell({ isOpen, position, title }: LauncherProps) {
+export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const commandsRef = useRef(commands)
   const [launchError, setLaunchError] = useState<string>()
+  const [isAuthPending, setIsAuthPending] = useState(false)
+  const [isSignedIn, setIsSignedIn] = useState(true)
   const launcherRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
@@ -53,6 +56,24 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
 
   function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
     visibleCommands.value = filterAndRankCommands(nextCommands, query)
+  }
+
+  async function toggleAuthentication() {
+    if (!auth || isAuthPending) {
+      return
+    }
+
+    setIsAuthPending(true)
+
+    try {
+      await (isSignedIn ? auth.onSignOut() : auth.onSignIn())
+      setIsSignedIn(!isSignedIn)
+      setLaunchError(undefined)
+    } catch (error) {
+      setLaunchError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsAuthPending(false)
+    }
   }
 
   async function activateCommand(command: CommandRecordSnapshot, preserveSearch = false) {
@@ -272,36 +293,37 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             <span aria-hidden="true" class={styles.dragHandle} />
             <div class={styles.titleBar}>
               <h2>{title}</h2>
-              <button
-                aria-label="Refresh page"
-                class={styles.refreshButton}
-                onClick={() => {
-                  window.location.reload()
-                }}
-                onPointerDown={(event) => {
-                  event.stopPropagation()
-                }}
-                type="button"
-              >
-                {/* Icon from Tabler Icons by Paweł Kuna: https://github.com/tabler/tabler-icons/blob/master/LICENSE */}
-                <svg
-                  aria-hidden="true"
-                  class={styles.refreshIcon}
-                  fill="none"
-                  focusable="false"
-                  viewBox="0 0 24 24"
-                >
-                  <g
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
+              <div class={styles.titleBarActions}>
+                {auth ? (
+                  <button
+                    aria-label={isSignedIn ? 'Sign out' : 'Sign in'}
+                    class={styles.titleBarButton}
+                    disabled={isAuthPending}
+                    onClick={() => {
+                      void toggleAuthentication()
+                    }}
+                    onPointerDown={(event) => {
+                      event.stopPropagation()
+                    }}
+                    type="button"
                   >
-                    <path d="M19.933 13.041a8 8 0 1 1-9.925-8.788c3.899-1 7.935 1.007 9.425 4.747" />
-                    <path d="M20 4v5h-5" />
-                  </g>
-                </svg>
-              </button>
+                    {isSignedIn ? <SignOutIcon /> : <SignInIcon />}
+                  </button>
+                ) : null}
+                <button
+                  aria-label="Refresh page"
+                  class={styles.titleBarButton}
+                  onClick={() => {
+                    window.location.reload()
+                  }}
+                  onPointerDown={(event) => {
+                    event.stopPropagation()
+                  }}
+                  type="button"
+                >
+                  <RefreshIcon />
+                </button>
+              </div>
             </div>
           </header>
           <input
@@ -360,6 +382,64 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
         </section>
       </>
     </div>
+  )
+}
+
+function RefreshIcon() {
+  return (
+    // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
+    <svg
+      aria-hidden="true"
+      class={styles.titleBarIcon}
+      fill="none"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z" />
+      <path
+        fill="currentColor"
+        d="M20 9a1 1 0 0 1 1 1v1a8 8 0 0 1-8 8H9.414l.793.793a1 1 0 0 1-1.414 1.414l-2.496-2.496a1 1 0 0 1-.287-.567L6 17.991a1 1 0 0 1 .237-.638l.056-.06l2.5-2.5a1 1 0 0 1 1.414 1.414L9.414 17H13a6 6 0 0 0 6-6v-1a1 1 0 0 1 1-1m-4.793-6.207l2.5 2.5a1 1 0 0 1 0 1.414l-2.5 2.5a1 1 0 1 1-1.414-1.414L14.586 7H11a6 6 0 0 0-6 6v1a1 1 0 1 1-2 0v-1a8 8 0 0 1 8-8h3.586l-.793-.793a1 1 0 0 1 1.414-1.414"
+      />
+    </svg>
+  )
+}
+
+function SignOutIcon() {
+  return (
+    // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
+    <svg
+      aria-hidden="true"
+      class={styles.titleBarIcon}
+      fill="none"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+      <path
+        fill="currentColor"
+        d="M11.5 3a1 1 0 0 1 .117 1.993L11.5 5H6v14h10v-6.5a1 1 0 0 1 1.993-.117L18 12.5V19h2a1 1 0 0 1 .117 1.993L20 21H4a1 1 0 0 1-.117-1.993L4 19V5a2 2 0 0 1 1.85-1.995L6 3zm2 8a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3m5.087-6.828l2.12 2.12a1 1 0 0 1 0 1.413l-2.12 2.123a1 1 0 0 1-1.415-1.413l.416-.417H14.38a1 1 0 1 1 0-2h3.205l-.412-.412a1 1 0 0 1 1.414-1.414"
+      />
+    </svg>
+  )
+}
+
+function SignInIcon() {
+  return (
+    // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
+    <svg
+      aria-hidden="true"
+      class={styles.titleBarIcon}
+      fill="none"
+      fill-rule="evenodd"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+      <path
+        fill="currentColor"
+        d="M11.852 5.782a4.5 4.5 0 1 1 1.388 7.31a2.1 2.1 0 0 0-.837-.178H11.04c-.69 0-1.25.56-1.25 1.25v1.578H8.213c-.69 0-1.25.56-1.25 1.25v1.578H4.72v-1.414l5.356-5.355c.544-.544.68-1.296.55-1.931a4.5 4.5 0 0 1 1.226-4.088m7.778-1.414A6.5 6.5 0 0 0 8.666 10.27a.2.2 0 0 1-.006.118l-5.5 5.5a1.5 1.5 0 0 0-.44 1.061v2.611c0 .558.452 1.01 1.01 1.01h3.983c.69 0 1.25-.56 1.25-1.25v-1.578h1.578c.69 0 1.25-.56 1.25-1.25v-1.578h.61q.003-.002.042.013a6.502 6.502 0 0 0 7.187-10.56Zm-4.95 4.95a1.5 1.5 0 1 0 2.122-2.122a1.5 1.5 0 0 0-2.122 2.121Z"
+      />
+    </svg>
   )
 }
 

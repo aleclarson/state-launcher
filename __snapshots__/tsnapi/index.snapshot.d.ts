@@ -20,10 +20,15 @@ export type MountedStateLauncher = {
   toggle(): void;
 };
 export type MountStateLauncherOptions = {
+  auth?: StateLauncherAuthOptions;
   target?: HTMLElement;
   initiallyOpen?: boolean;
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   title?: string;
+};
+export type StateLauncherAuthOptions = {
+  onSignIn: () => void | Promise<void>;
+  onSignOut: () => void | Promise<void>;
 };
 export type StateLauncherCommand<Id extends string = string> = {
   readonly id: Id;

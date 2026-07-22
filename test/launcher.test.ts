@@ -6,6 +6,7 @@ import {
   defineLaunchableState,
   mountStateLauncher,
   registerLaunchableState,
+  type MountStateLauncherOptions,
 } from '../src/index'
 
 const launcherCss = readFileSync(resolve('src/launcher.module.css'), 'utf8')
@@ -122,6 +123,70 @@ test('refreshes the page from the title bar', () => {
 
   expect(refreshButton).toBeTruthy()
   expect(reload).toHaveBeenCalledOnce()
+})
+
+test('shows an auth toggle only when both auth handlers are configured', async () => {
+  const onSignIn = vi.fn()
+  const onSignOut = vi.fn()
+
+  mountStateLauncher({ initiallyOpen: true })
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign out"]')).toBeNull()
+
+  document.body.replaceChildren()
+  mountStateLauncher({
+    auth: { onSignIn, onSignOut },
+    initiallyOpen: true,
+  })
+  const titleBarButtons = [
+    ...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('header button'),
+  ]
+
+  expect(titleBarButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
+    'Sign out',
+    'Refresh page',
+  ])
+
+  titleBarButtons[0]?.click()
+  await nextRender()
+
+  expect(onSignOut).toHaveBeenCalledOnce()
+  expect(onSignIn).not.toHaveBeenCalled()
+
+  const signInButton =
+    getLauncherShadowRoot()?.querySelector<HTMLButtonElement>('[aria-label="Sign in"]')
+  signInButton?.click()
+  await nextRender()
+
+  expect(signInButton).toBeTruthy()
+  expect(onSignIn).toHaveBeenCalledOnce()
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign out"]')).toBeTruthy()
+})
+
+test('keeps the current auth action when its handler fails', async () => {
+  mountStateLauncher({
+    auth: {
+      onSignIn: vi.fn(),
+      onSignOut: vi.fn().mockRejectedValue(new Error('Sign out failed.')),
+    },
+    initiallyOpen: true,
+  })
+
+  getLauncherShadowRoot()?.querySelector<HTMLButtonElement>('[aria-label="Sign out"]')?.click()
+  await nextRender()
+
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign out"]')).toBeTruthy()
+  expect(getLauncherShadowRoot()?.querySelector('[role="alert"]')?.textContent).toBe(
+    'Sign out failed.',
+  )
+})
+
+test('requires auth handlers to be defined together', () => {
+  expect(() =>
+    mountStateLauncher({
+      auth: { onSignIn: vi.fn() } as unknown as MountStateLauncherOptions['auth'],
+    }),
+  ).toThrow('auth.onSignIn and auth.onSignOut must be defined together')
+  expect(document.querySelector('[data-state-launcher-host="true"]')).toBeNull()
 })
 
 test('hides the launcher when the area above the mobile drawer is tapped', async () => {

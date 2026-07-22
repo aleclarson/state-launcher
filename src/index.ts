@@ -9,6 +9,8 @@ export { mountStateLauncher } from './launcher'
 
 /** Options for mounting the isolated in-page launcher UI. */
 export type MountStateLauncherOptions = {
+  /** Optional authentication actions shown in the launcher title bar. */
+  auth?: StateLauncherAuthOptions
   /** Element that receives the launcher host. Defaults to `document.body`. */
   target?: HTMLElement
   /** Whether the command panel is open immediately after mount. Defaults to `false`. */
@@ -21,6 +23,14 @@ export type MountStateLauncherOptions = {
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   /** Accessible panel title. Defaults to `Commands`. */
   title?: string
+}
+
+/** Authentication actions exposed by the launcher UI. Both handlers are required. */
+export type StateLauncherAuthOptions = {
+  /** Sign the current user in. */
+  onSignIn: () => void | Promise<void>
+  /** Sign the current user out. */
+  onSignOut: () => void | Promise<void>
 }
 
 /** Controller returned by `mountStateLauncher`. */

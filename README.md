@@ -84,6 +84,23 @@ No consumer Shadow DOM overrides are needed.
 returned controller to wire the launcher to an app-owned button, menu item,
 keyboard shortcut, or test helper.
 
+Pass both `auth.onSignIn` and `auth.onSignOut` to add an authentication toggle
+beside the title-bar refresh button:
+
+```ts
+mountStateLauncher({
+  auth: {
+    onSignIn: () => signInAsTestUser(),
+    onSignOut: () => signOutTestUser(),
+  },
+})
+```
+
+The toggle initially offers sign out. After an action succeeds, it switches to
+the opposite action. While an async handler is pending the toggle is disabled;
+if a handler rejects, the launcher displays the error and keeps the current
+action available. Omit `auth` to hide the toggle.
+
 `defineLaunchableState()` is annotated as side-effect free, and the package marks
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`
 and `mountStateLauncher()` in dev-only code paths when you want production

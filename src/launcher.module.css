@@ -94,7 +94,14 @@
     justify-content: space-between;
   }
 
-  .refreshButton {
+  .titleBarActions {
+    align-items: center;
+    display: flex;
+    gap: 2px;
+    margin: -7px -7px -7px 8px;
+  }
+
+  .titleBarButton {
     align-items: center;
     background: transparent;
     border: 0;
@@ -105,7 +112,6 @@
     flex-shrink: 0;
     height: 28px;
     justify-content: center;
-    margin: -7px -7px -7px 8px;
     padding: 5px;
     width: 28px;
 
@@ -119,7 +125,12 @@
       outline-offset: -2px;
     }
 
-    .refreshIcon {
+    &:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    .titleBarIcon {
       display: block;
       height: 18px;
       width: 18px;

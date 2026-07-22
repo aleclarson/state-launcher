@@ -18,6 +18,8 @@ const defaultPosition = 'bottom-right'
  * registry.
  */
 export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
+  validateAuthOptions(options.auth)
+
   const target = options.target ?? document.body
   const position = options.position ?? defaultPosition
   const launcherIsolet = createIsolet<LauncherProps>({
@@ -32,6 +34,7 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
   })
   const isOpen = signal(Boolean(options.initiallyOpen))
   const props = {
+    auth: options.auth,
     isOpen,
     setOpen(nextOpen: boolean) {
       if (!mounted) {
@@ -68,6 +71,15 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       mounted = false
       launcherIsolet.unmount()
     },
+  }
+}
+
+function validateAuthOptions(auth: MountStateLauncherOptions['auth']): void {
+  if (
+    auth !== undefined &&
+    (typeof auth?.onSignIn !== 'function' || typeof auth?.onSignOut !== 'function')
+  ) {
+    throw new TypeError('State launcher auth.onSignIn and auth.onSignOut must be defined together.')
   }
 }
 
