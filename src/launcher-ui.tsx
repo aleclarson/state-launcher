@@ -194,6 +194,16 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
       refreshVisibleCommands(commands)
       searchInputRef.current?.focus()
     } else if (!isLauncherOpen && searchInputRef.current) {
+      const searchRoot = searchInputRef.current.getRootNode()
+
+      if (
+        hasOpenedRef.current &&
+        window.matchMedia(mobileViewportQuery).matches &&
+        (searchRoot instanceof Document || searchRoot instanceof ShadowRoot) &&
+        searchRoot.activeElement === searchInputRef.current
+      ) {
+        searchInputRef.current.blur()
+      }
       searchInputRef.current.value = ''
       refreshVisibleCommands(commands, '')
       searchNavigation.resetActiveIndex()

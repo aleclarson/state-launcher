@@ -204,6 +204,21 @@ test('focuses the filter input when opened with controller', async () => {
   expect(focus).toHaveBeenCalledOnce()
 })
 
+test('blurs the filter input when the launcher hides on mobile', async () => {
+  const blur = vi.spyOn(HTMLInputElement.prototype, 'blur')
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true })),
+  )
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  launcher.close()
+  await nextRender()
+
+  expect(blur).toHaveBeenCalledOnce()
+})
+
 test('hides the launcher when Escape is pressed in the filter input', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
