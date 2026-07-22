@@ -17,7 +17,7 @@ Use this package if you need:
 Do not use it if you need:
 
 - production feature flags, routing, or end-user navigation
-- persisted history, acknowledgements, parameters, or event inspection
+- cross-device history, acknowledgements, parameters, or event inspection
 - mock-server orchestration or data seeding built into the package
 - framework integrations beyond the exported React and Preact hooks
 
@@ -100,6 +100,11 @@ The toggle initially offers sign out. After an action succeeds, it switches to
 the opposite action. While an async handler is pending the toggle is disabled;
 if a handler rejects, the launcher displays the error and keeps the current
 action available. Omit `auth` to hide the toggle.
+
+The launcher keeps successful launches from the past 24 hours in local storage.
+When the search is empty, up to three registered commands with the most recent
+launches appear in a leading Recent group. Search results continue to use launch
+frequency as a ranking hint.
 
 `defineLaunchableState()` is annotated as side-effect free, and the package marks
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`

@@ -55,6 +55,8 @@ Use:
 
 Mounted launchers subscribe to registry changes. Clearing commands while a launcher is mounted updates the panel to show the empty registry.
 
+Successful launches are retained in browser local storage for 24 hours. With an empty search, the launcher surfaces up to three registered commands with the latest launches in a leading Recent group. Stale history for unregistered commands is not displayed. During search, launch frequency remains a ranking hint instead of a separate group.
+
 ## Launch handlers
 
 A command can exist before it has a handler. In the launcher UI, registered commands without handlers are shown as disabled and ranked below commands that can be launched. Programmatic attempts to launch a command without a handler reject with an error. This lets shared modules export command handles without importing app setup code.

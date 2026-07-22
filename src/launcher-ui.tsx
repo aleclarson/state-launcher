@@ -17,6 +17,7 @@ import {
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
 const launchHistoryWindowMs = 24 * 60 * 60 * 1000
+const recentCommandLimit = 3
 const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
 
@@ -49,8 +50,10 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
     hasOpenedRef.current = true
   }
   const visibleCommands = useSignal(commands)
+  const recentCommandIds = useSignal<string[]>([])
   const currentVisibleCommands = visibleCommands.value
-  const groupedCommands = groupCommands(currentVisibleCommands)
+  const currentRecentCommandIds = recentCommandIds.value
+  const groupedCommands = groupCommands(currentVisibleCommands, currentRecentCommandIds)
 
   function readSearchQuery() {
     return searchInputRef.current?.value ?? ''
@@ -58,6 +61,7 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
 
   function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
     visibleCommands.value = filterAndRankCommands(nextCommands, query)
+    recentCommandIds.value = query.trim() ? [] : readRecentCommandIds(Date.now(), nextCommands)
   }
 
   async function toggleAuthentication() {
@@ -489,11 +493,16 @@ function filterAndRankCommands(
   commands: CommandRecordSnapshot[],
   query: string,
 ): CommandRecordSnapshot[] {
-  const launchCounts = readLaunchCounts(Date.now())
+  const now = Date.now()
+  const launchHistory = readLaunchHistory(now)
+  const launchCounts = createLaunchCounts(launchHistory)
   const trimmedQuery = query.trim()
 
   if (!trimmedQuery) {
-    return rankCommands(commands, launchCounts, true)
+    return rankRecentCommands(
+      rankCommands(commands, launchCounts, true),
+      readRecentCommandIds(now, commands, launchHistory),
+    )
   }
 
   return rankCommands(
@@ -505,6 +514,29 @@ function filterAndRankCommands(
     ]).items.map((item) => item.value),
     launchCounts,
   )
+}
+
+function rankRecentCommands(
+  commands: CommandRecordSnapshot[],
+  recentCommandIds: readonly string[],
+): CommandRecordSnapshot[] {
+  const recentRanks = new Map(recentCommandIds.map((id, index) => [id, index]))
+
+  return [...commands].sort((left, right) => {
+    const leftRank = recentRanks.get(left.id)
+    const rightRank = recentRanks.get(right.id)
+
+    if (leftRank !== undefined && rightRank !== undefined) {
+      return leftRank - rightRank
+    }
+    if (leftRank !== undefined) {
+      return -1
+    }
+    if (rightRank !== undefined) {
+      return 1
+    }
+    return 0
+  })
 }
 
 function rankCommands(
@@ -535,8 +567,22 @@ function recordLaunch(commandId: string, now: number): void {
   writeLaunchHistory(history)
 }
 
-function readLaunchCounts(now: number): LaunchCounts {
-  return createLaunchCounts(readLaunchHistory(now))
+function readRecentCommandIds(
+  now: number,
+  commands: readonly CommandRecordSnapshot[],
+  history = readLaunchHistory(now),
+): string[] {
+  const commandIds = new Set(commands.map((command) => command.id))
+
+  return Object.entries(history)
+    .filter(([id]) => commandIds.has(id))
+    .sort(([, leftTimestamps], [, rightTimestamps]) => {
+      return (
+        rightTimestamps[rightTimestamps.length - 1]! - leftTimestamps[leftTimestamps.length - 1]!
+      )
+    })
+    .slice(0, recentCommandLimit)
+    .map(([id]) => id)
 }
 
 function readLaunchHistory(now: number): LaunchHistory {
@@ -610,11 +656,16 @@ function createLaunchCounts(history: LaunchHistory): LaunchCounts {
   return new Map(Object.entries(history).map(([id, timestamps]) => [id, timestamps.length]))
 }
 
-function groupCommands(commands: CommandRecordSnapshot[]) {
+function groupCommands(commands: CommandRecordSnapshot[], recentCommandIds: readonly string[]) {
   const groups = new Map<string, { command: CommandRecordSnapshot; index: number }[]>()
+  const recentCommands = new Set(recentCommandIds)
 
   for (const [index, command] of commands.entries()) {
-    const groupName = command.id.includes('.') ? command.id.split('.')[0]! : 'ungrouped'
+    const groupName = recentCommands.has(command.id)
+      ? 'Recent'
+      : command.id.includes('.')
+        ? command.id.split('.')[0]!
+        : 'ungrouped'
     const group = groups.get(groupName)
     const item = { command, index }
 

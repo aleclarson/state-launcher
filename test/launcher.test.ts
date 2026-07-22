@@ -604,6 +604,56 @@ test('remembers launched states for later launcher mounts', async () => {
   expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
 })
 
+test('shows recently launched commands once in a leading group', async () => {
+  const now = Date.now()
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'archived.missingCommand': [now],
+      'billing.paymentFailed': [now - 2000],
+      'inbox.manyMessages': [now - 1000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('billing.emptyInvoices', {
+      label: 'Empty invoices',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  const shadowRoot = getLauncherShadowRoot()
+  const groups = [...shadowRoot!.querySelectorAll<HTMLElement>('section section')]
+
+  expect(groups.map((group) => group.querySelector('h3')?.textContent)).toEqual([
+    'Recent',
+    'billing',
+  ])
+  expect(
+    [...groups[0]!.querySelectorAll('[role="option"]')].map(
+      (command) => command.querySelector('span')?.textContent,
+    ),
+  ).toEqual(['Many messages', 'Payment failed'])
+  expect(getCommandLabels()).toEqual(['Many messages', 'Payment failed', 'Empty invoices'])
+
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  search!.value = 'billing'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(shadowRoot?.textContent).not.toContain('Recent')
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
+})
+
 test('activates the selected command with keyboard navigation', async () => {
   const firstLaunch = vi.fn()
   const secondLaunch = vi.fn()
