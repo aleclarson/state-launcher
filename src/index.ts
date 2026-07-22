@@ -26,8 +26,10 @@ export type MountStateLauncherOptions = {
   title?: string
 }
 
-/** Authentication actions exposed by the launcher UI. Both handlers are required. */
+/** Authentication state and actions exposed by the launcher UI. */
 export type StateLauncherAuthOptions = {
+  /** Whether the current user is signed in when the launcher is mounted. */
+  isSignedIn: boolean
   /** Sign the current user in. */
   onSignIn: () => void | Promise<void>
   /** Sign the current user out. */

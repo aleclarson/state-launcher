@@ -27,6 +27,7 @@ export type MountStateLauncherOptions = {
   title?: string;
 };
 export type StateLauncherAuthOptions = {
+  isSignedIn: boolean;
   onSignIn: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;
 };

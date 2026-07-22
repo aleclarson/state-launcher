@@ -132,7 +132,7 @@ calls updated handlers without reattaching the registry handler.
 - swipe-down dismissal from the pill above the drawer title, with slide-in and slide-out transitions
 - custom panel title
 - initially open or closed state
-- an optional sign-out/sign-in toggle backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
+- an optional sign-out/sign-in toggle initialized by `auth.isSignedIn` and backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches

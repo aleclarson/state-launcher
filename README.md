@@ -89,22 +89,24 @@ the panel and choose Clear to abort its launch signal and run its returned
 cleanup functions without unregistering any commands. The same operation is
 available programmatically through `clearActiveState()`.
 
-Pass both `auth.onSignIn` and `auth.onSignOut` to add an authentication toggle
-beside the title-bar refresh button:
+Pass the current `auth.isSignedIn` status with `auth.onSignIn` and
+`auth.onSignOut` to add an authentication toggle beside the title-bar refresh
+button:
 
 ```ts
 mountStateLauncher({
   auth: {
+    isSignedIn: Boolean(currentUser),
     onSignIn: () => signInAsTestUser(),
     onSignOut: () => signOutTestUser(),
   },
 })
 ```
 
-The toggle initially offers sign out. After an action succeeds, it switches to
-the opposite action. While an async handler is pending the toggle is disabled;
-if a handler rejects, the launcher displays the error and keeps the current
-action available. Omit `auth` to hide the toggle.
+The toggle initially offers the action opposite `isSignedIn`. After an action
+succeeds, it switches to the opposite action. While an async handler is pending
+the toggle is disabled; if a handler rejects, the launcher displays the error
+and keeps the current action available. Omit `auth` to hide the toggle.
 
 The launcher keeps successful launches from the past 24 hours in local storage.
 When the search is empty, up to three registered commands with the most recent

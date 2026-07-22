@@ -142,7 +142,7 @@ test('refreshes the page from the title bar', () => {
   expect(reload).toHaveBeenCalledOnce()
 })
 
-test('shows an auth toggle only when both auth handlers are configured', async () => {
+test('shows an auth toggle with the configured authentication state', async () => {
   const onSignIn = vi.fn()
   const onSignOut = vi.fn()
 
@@ -151,7 +151,7 @@ test('shows an auth toggle only when both auth handlers are configured', async (
 
   document.body.replaceChildren()
   mountStateLauncher({
-    auth: { onSignIn, onSignOut },
+    auth: { isSignedIn: false, onSignIn, onSignOut },
     initiallyOpen: true,
   })
   const titleBarButtons = [
@@ -159,29 +159,30 @@ test('shows an auth toggle only when both auth handlers are configured', async (
   ]
 
   expect(titleBarButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
-    'Sign out',
+    'Sign in',
     'Refresh page',
   ])
 
   titleBarButtons[0]?.click()
   await nextRender()
 
-  expect(onSignOut).toHaveBeenCalledOnce()
-  expect(onSignIn).not.toHaveBeenCalled()
+  expect(onSignIn).toHaveBeenCalledOnce()
+  expect(onSignOut).not.toHaveBeenCalled()
 
-  const signInButton =
-    getLauncherShadowRoot()?.querySelector<HTMLButtonElement>('[aria-label="Sign in"]')
-  signInButton?.click()
+  const signOutButton =
+    getLauncherShadowRoot()?.querySelector<HTMLButtonElement>('[aria-label="Sign out"]')
+  signOutButton?.click()
   await nextRender()
 
-  expect(signInButton).toBeTruthy()
-  expect(onSignIn).toHaveBeenCalledOnce()
-  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign out"]')).toBeTruthy()
+  expect(signOutButton).toBeTruthy()
+  expect(onSignOut).toHaveBeenCalledOnce()
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign in"]')).toBeTruthy()
 })
 
 test('keeps the current auth action when its handler fails', async () => {
   mountStateLauncher({
     auth: {
+      isSignedIn: true,
       onSignIn: vi.fn(),
       onSignOut: vi.fn().mockRejectedValue(new Error('Sign out failed.')),
     },
@@ -197,12 +198,15 @@ test('keeps the current auth action when its handler fails', async () => {
   )
 })
 
-test('requires auth handlers to be defined together', () => {
+test('requires auth state and handlers to be defined together', () => {
   expect(() =>
     mountStateLauncher({
-      auth: { onSignIn: vi.fn() } as unknown as MountStateLauncherOptions['auth'],
+      auth: {
+        onSignIn: vi.fn(),
+        onSignOut: vi.fn(),
+      } as unknown as MountStateLauncherOptions['auth'],
     }),
-  ).toThrow('auth.onSignIn and auth.onSignOut must be defined together')
+  ).toThrow('auth.isSignedIn, auth.onSignIn, and auth.onSignOut must be defined together')
   expect(document.querySelector('[data-state-launcher-host="true"]')).toBeNull()
 })
 

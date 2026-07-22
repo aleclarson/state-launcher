@@ -77,9 +77,13 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
 function validateAuthOptions(auth: MountStateLauncherOptions['auth']): void {
   if (
     auth !== undefined &&
-    (typeof auth?.onSignIn !== 'function' || typeof auth?.onSignOut !== 'function')
+    (typeof auth?.isSignedIn !== 'boolean' ||
+      typeof auth?.onSignIn !== 'function' ||
+      typeof auth?.onSignOut !== 'function')
   ) {
-    throw new TypeError('State launcher auth.onSignIn and auth.onSignOut must be defined together.')
+    throw new TypeError(
+      'State launcher auth.isSignedIn, auth.onSignIn, and auth.onSignOut must be defined together.',
+    )
   }
 }
 
