@@ -80,13 +80,19 @@ test('fixes the mobile drawer container to the visible viewport', () => {
   expect(launcherCss).toContain('state-launcher-slide-out')
 })
 
-test('animates the desktop launcher in from the right', () => {
+test('animates the desktop launcher in from its pinned side', () => {
   expect(launcherCss).toContain('@media (min-width: 1025px)')
+  expect(launcherCss).toMatch(
+    /\.stateLauncher\.bottom-right,[\s\S]*?\.stateLauncher\.top-right \{\s*--state-launcher-enter-offset: 14px;/,
+  )
+  expect(launcherCss).toMatch(
+    /\.stateLauncher\.bottom-left,[\s\S]*?\.stateLauncher\.top-left \{\s*--state-launcher-enter-offset: -14px;/,
+  )
   expect(launcherCss).toContain(
     'animation: state-launcher-desktop-enter 140ms cubic-bezier(0.22, 1, 0.36, 1) both',
   )
   expect(launcherCss).toMatch(
-    /@keyframes state-launcher-desktop-enter \{[\s\S]*?opacity: 0;[\s\S]*?transform: translateX\(14px\);[\s\S]*?opacity: 1;[\s\S]*?transform: translateX\(0\);/,
+    /@keyframes state-launcher-desktop-enter \{[\s\S]*?opacity: 0;[\s\S]*?transform: translateX\(var\(--state-launcher-enter-offset\)\);[\s\S]*?opacity: 1;[\s\S]*?transform: translateX\(0\);/,
   )
   expect(launcherCss).toContain('@media (min-width: 1025px) and (prefers-reduced-motion: reduce)')
 })

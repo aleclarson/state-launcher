@@ -376,6 +376,16 @@
 }
 
 @media (min-width: 1025px) {
+  .stateLauncher.bottom-right,
+  .stateLauncher.top-right {
+    --state-launcher-enter-offset: 14px;
+  }
+
+  .stateLauncher.bottom-left,
+  .stateLauncher.top-left {
+    --state-launcher-enter-offset: -14px;
+  }
+
   .stateLauncher .panel[data-state='open'] {
     animation: state-launcher-desktop-enter 140ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -384,7 +394,7 @@
 @keyframes state-launcher-desktop-enter {
   from {
     opacity: 0;
-    transform: translateX(14px);
+    transform: translateX(var(--state-launcher-enter-offset));
   }
 
   to {
