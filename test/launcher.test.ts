@@ -640,7 +640,7 @@ test('shows recently launched commands once in a leading group', async () => {
   ])
   expect(
     [...groups[0]!.querySelectorAll('[role="option"]')].map(
-      (command) => command.querySelector('span')?.textContent,
+      (command) => command.querySelector('[data-command-label]')?.textContent,
     ),
   ).toEqual(['Many messages', 'Payment failed'])
   expect(getCommandLabels()).toEqual(['Many messages', 'Payment failed', 'Empty invoices'])
@@ -716,6 +716,46 @@ test('shows pending launch feedback and prevents duplicate activation', async ()
   await nextRender()
 
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
+})
+
+test('shows and clears the active state', async () => {
+  let launchSignal: AbortSignal | undefined
+  const cleanup = vi.fn()
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      launch(context) {
+        launchSignal = context.signal
+        return cleanup
+      },
+    }),
+  ])
+
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  getCommandButton('Payment failed')?.click()
+  await nextRender()
+
+  launcher.open()
+  await nextRender()
+  const shadowRoot = getLauncherShadowRoot()
+  const activeCommand = shadowRoot?.querySelector<HTMLButtonElement>('[aria-current="true"]')
+
+  expect(activeCommand?.textContent).toContain('Payment failed')
+  expect(activeCommand?.textContent).toContain('Active')
+  expect(shadowRoot?.textContent).toContain('Active: Payment failed')
+
+  const clearButton = [...shadowRoot!.querySelectorAll<HTMLButtonElement>('button')].find(
+    (button) => button.textContent === 'Clear',
+  )
+  clearButton?.click()
+  await nextRender()
+
+  expect(clearButton).toBeTruthy()
+  expect(launchSignal?.aborted).toBe(true)
+  expect(cleanup).toHaveBeenCalledOnce()
+  expect(shadowRoot?.querySelector('[aria-current="true"]')).toBeNull()
+  expect(shadowRoot?.textContent).not.toContain('Active: Payment failed')
+  expect(getCommandButton('Payment failed')?.disabled).toBe(false)
 })
 
 test('blurs the filter and hides the launcher after launching with keyboard', async () => {
@@ -875,13 +915,13 @@ function getLauncherShadowRoot() {
 
 function getCommandLabels() {
   return [...getLauncherShadowRoot()!.querySelectorAll('[role="option"]')].map(
-    (command) => command.querySelector('span')?.textContent,
+    (command) => command.querySelector('[data-command-label]')?.textContent,
   )
 }
 
 function getCommandButton(label: string) {
   return [...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('[role="option"]')].find(
-    (command) => command.querySelector('span')?.textContent === label,
+    (command) => command.querySelector('[data-command-label]')?.textContent === label,
   )
 }
 

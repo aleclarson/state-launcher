@@ -47,6 +47,7 @@ The registry is process-local. Command handles are plain values; the launcher on
 Use:
 
 - `registerLaunchableState(commands)` to make command handles visible to the launcher.
+- `clearActiveState()` to abort the active launch and run its cleanup functions without unregistering commands.
 - `unregisterCommand(commandOrId)` to remove one command.
 - `clearCommands()` to reset the registry, especially between tests.
 - `mountStateLauncher(...).unmount()` to remove the UI while leaving command records intact.
@@ -77,6 +78,7 @@ Use the root entrypoint for framework-neutral registration, launching, cleanup, 
 
 ```ts
 import {
+  clearActiveState,
   clearCommands,
   defineLaunchableState,
   launchCommand,

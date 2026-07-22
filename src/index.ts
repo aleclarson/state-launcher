@@ -1,4 +1,5 @@
 export {
+  clearActiveState,
   clearCommands,
   defineLaunchableState,
   launchCommand,

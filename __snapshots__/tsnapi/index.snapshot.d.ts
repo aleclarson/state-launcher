@@ -40,6 +40,7 @@ export type StateLauncherCommand<Id extends string = string> = {
 // #endregion
 
 // #region Functions
+export declare function clearActiveState(): Promise<void>;
 export declare function clearCommands(): void;
 export declare function defineLaunchableState<const Id extends string>(_: Id, _?: LaunchableStateOptions): StateLauncherCommand<Id>;
 export declare function launchCommand(_: StateLauncherCommand | string): Promise<void>;

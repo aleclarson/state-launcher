@@ -9,6 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preac
 import type { MountStateLauncherOptions } from './index'
 import styles from './launcher.module.css'
 import {
+  clearActiveState,
   launchCommand,
   listCommandRecords,
   subscribeCommandRecords,
@@ -37,7 +38,9 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   const [launchError, setLaunchError] = useState<string>()
   const [pendingCommandId, setPendingCommandId] = useState<string>()
   const [isAuthPending, setIsAuthPending] = useState(false)
+  const [isClearPending, setIsClearPending] = useState(false)
   const [isSignedIn, setIsSignedIn] = useState(true)
+  const isClearPendingRef = useRef(false)
   const launcherRef = useRef<HTMLDivElement | null>(null)
   const pendingCommandIdRef = useRef<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -54,6 +57,8 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   const currentVisibleCommands = visibleCommands.value
   const currentRecentCommandIds = recentCommandIds.value
   const groupedCommands = groupCommands(currentVisibleCommands, currentRecentCommandIds)
+  const activeCommand = commands.find((command) => command.isActive)
+  const isCommandInteractionPending = Boolean(pendingCommandId) || isClearPending
 
   function readSearchQuery() {
     return searchInputRef.current?.value ?? ''
@@ -83,7 +88,7 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   }
 
   async function activateCommand(command: CommandRecordSnapshot, preserveSearch = false) {
-    if (pendingCommandIdRef.current) {
+    if (pendingCommandIdRef.current || isClearPendingRef.current) {
       return
     }
 
@@ -110,6 +115,25 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
     } finally {
       pendingCommandIdRef.current = undefined
       setPendingCommandId(undefined)
+    }
+  }
+
+  async function clearCurrentState() {
+    if (pendingCommandIdRef.current || isClearPendingRef.current) {
+      return
+    }
+
+    isClearPendingRef.current = true
+    setIsClearPending(true)
+    setLaunchError(undefined)
+
+    try {
+      await clearActiveState()
+    } catch (error) {
+      setLaunchError(error instanceof Error ? error.message : String(error))
+    } finally {
+      isClearPendingRef.current = false
+      setIsClearPending(false)
     }
   }
 
@@ -353,8 +377,28 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
           <div aria-live="polite" aria-atomic="true" class={styles.visuallyHidden} role="status">
             {pendingCommandId
               ? `Launching ${commands.find((command) => command.id === pendingCommandId)?.label ?? pendingCommandId}…`
-              : ''}
+              : isClearPending
+                ? 'Clearing active state…'
+                : ''}
           </div>
+          {activeCommand ? (
+            <div class={styles.activeState}>
+              <span class={styles.activeStateLabel}>
+                <span aria-hidden="true" class={styles.activeStateDot} />
+                Active: {activeCommand.label ?? activeCommand.id}
+              </span>
+              <button
+                class={styles.clearActiveState}
+                disabled={isCommandInteractionPending}
+                onClick={() => {
+                  void clearCurrentState()
+                }}
+                type="button"
+              >
+                {isClearPending ? 'Clearing…' : 'Clear'}
+              </button>
+            </div>
+          ) : null}
           {launchError ? (
             <div class={styles.error} role="alert">
               {launchError}
@@ -371,6 +415,7 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                   <h3 class={styles.groupTitle}>{group.name}</h3>
                   <div class={styles.items}>
                     {group.commands.map(({ command, index }) => {
+                      const isActive = command.isActive
                       const isPending = pendingCommandId === command.id
                       let className = styles.command
 
@@ -380,13 +425,17 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                       if (isPending) {
                         className += ` ${styles.pending}`
                       }
+                      if (isActive) {
+                        className += ` ${styles.active}`
+                      }
 
                       return (
                         <button
-                          aria-disabled={Boolean(pendingCommandId) || !command.hasLaunchHandler}
+                          aria-current={isActive || undefined}
+                          aria-disabled={isCommandInteractionPending || !command.hasLaunchHandler}
                           aria-busy={isPending || undefined}
                           class={className}
-                          disabled={Boolean(pendingCommandId) || !command.hasLaunchHandler}
+                          disabled={isCommandInteractionPending || !command.hasLaunchHandler}
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)
@@ -396,8 +445,15 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                           type="button"
                         >
                           <span class={styles.commandHeading}>
-                            <span class={styles.commandLabel}>{command.label ?? command.id}</span>
-                            {isPending ? <span aria-hidden="true" class={styles.spinner} /> : null}
+                            <span class={styles.commandLabel} data-command-label="">
+                              {command.label ?? command.id}
+                            </span>
+                            <span class={styles.commandIndicators}>
+                              {isActive ? <span class={styles.activeBadge}>Active</span> : null}
+                              {isPending ? (
+                                <span aria-hidden="true" class={styles.spinner} />
+                              ) : null}
+                            </span>
                           </span>
                           {command.description ? (
                             <span class={styles.commandDescription}>{command.description}</span>
@@ -484,7 +540,8 @@ function haveMatchingCommandSnapshots(
     currentCommands.every(
       (command, index) =>
         command.command === nextCommands[index]?.command &&
-        command.hasLaunchHandler === nextCommands[index]?.hasLaunchHandler,
+        command.hasLaunchHandler === nextCommands[index]?.hasLaunchHandler &&
+        command.isActive === nextCommands[index]?.isActive,
     )
   )
 }

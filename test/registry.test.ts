@@ -1,4 +1,5 @@
 import {
+  clearActiveState,
   clearCommands,
   defineLaunchableState,
   launchCommand,
@@ -160,6 +161,33 @@ test('runs launch cleanups when another state is activated', async () => {
   expect(cleanup).toHaveBeenCalledOnce()
   expect(secondLaunch).toHaveBeenCalledOnce()
   expect(calls).toEqual(['cleanup', 'second launch'])
+})
+
+test('clears the active state without unregistering its command', async () => {
+  let launchSignal: AbortSignal | undefined
+  const cleanup = vi.fn()
+  const launch = vi.fn((context) => {
+    launchSignal = context.signal
+    return cleanup
+  })
+  const command = defineLaunchableState('billing.paymentFailed', { launch })
+  registerLaunchableState([command])
+
+  await command.launch()
+  await clearActiveState()
+  await clearActiveState()
+
+  expect(launchSignal?.aborted).toBe(true)
+  expect(cleanup).toHaveBeenCalledOnce()
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({
+      id: 'billing.paymentFailed',
+      isActive: false,
+    }),
+  ])
+
+  await command.launch()
+  expect(launch).toHaveBeenCalledTimes(2)
 })
 
 test('does not run launch cleanups when the same state is relaunched', async () => {

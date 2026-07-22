@@ -40,6 +40,7 @@ export type CommandRecordSnapshot = Readonly<{
   description?: string
   tags: readonly string[]
   hasLaunchHandler: boolean
+  isActive: boolean
 }>
 
 type CommandRegistry = {
@@ -180,6 +181,26 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
   }
 }
 
+/** Abort the active state and run its registered cleanup functions. */
+export async function clearActiveState(): Promise<void> {
+  if (!activeLaunch) {
+    return
+  }
+
+  const cleanups = activeLaunchCleanups
+  activeLaunch.controller.abort()
+  activeLaunch = undefined
+  activeLaunchCleanups = []
+
+  try {
+    for (const cleanup of cleanups) {
+      await cleanup()
+    }
+  } finally {
+    notifyCommandListeners()
+  }
+}
+
 /** Unregister a command by handle or id. Missing string ids are ignored. */
 export function unregisterCommand(commandOrId: StateLauncherCommand | string): void {
   if (typeof commandOrId === 'string') {
@@ -251,6 +272,7 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
         description: record.description,
         tags: record.tags ?? [],
         hasLaunchHandler: record.launchHandlers.size > 0,
+        isActive: record.id === activeLaunch?.id,
       })
     }
   }
@@ -486,6 +508,7 @@ async function activateCommand(id: string): Promise<LaunchContext> {
     id,
   }
   activeLaunchCleanups = []
+  notifyCommandListeners()
 
   for (const cleanup of cleanups) {
     await cleanup()

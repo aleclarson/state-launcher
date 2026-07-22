@@ -84,6 +84,11 @@ No consumer Shadow DOM overrides are needed.
 returned controller to wire the launcher to an app-owned button, menu item,
 keyboard shortcut, or test helper.
 
+When a command is launched, the launcher marks it as active. Reopen
+the panel and choose Clear to abort its launch signal and run its returned
+cleanup functions without unregistering any commands. The same operation is
+available programmatically through `clearActiveState()`.
+
 Pass both `auth.onSignIn` and `auth.onSignOut` to add an authentication toggle
 beside the title-bar refresh button:
 
