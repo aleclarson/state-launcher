@@ -2,7 +2,7 @@
 
 import { useSearchNavigation } from '@goddard-ai/ui-primitives'
 import { useSignal, type Signal } from '@preact/signals'
-import { searchFields } from 'fuzzysort2'
+import { searchFields, segments, type FieldMatch, type MatchRange } from 'fuzzysort2'
 import type { TargetedFocusEvent, TargetedPointerEvent } from 'preact'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
@@ -31,6 +31,10 @@ export type LauncherProps = {
 
 type LaunchCounts = ReadonlyMap<string, number>
 type LaunchHistory = Record<string, number[]>
+type CommandSearchView = {
+  commands: CommandRecordSnapshot[]
+  matches: ReadonlyMap<string, readonly FieldMatch[]>
+}
 
 export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
@@ -53,8 +57,10 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
     hasOpenedRef.current = true
   }
   const visibleCommands = useSignal(commands)
+  const commandMatches = useSignal<ReadonlyMap<string, readonly FieldMatch[]>>(new Map())
   const recentCommandIds = useSignal<string[]>([])
   const currentVisibleCommands = visibleCommands.value
+  const currentCommandMatches = commandMatches.value
   const currentRecentCommandIds = recentCommandIds.value
   const groupedCommands = groupCommands(currentVisibleCommands, currentRecentCommandIds)
   const activeCommand = commands.find((command) => command.isActive)
@@ -65,7 +71,9 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   }
 
   function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
-    visibleCommands.value = filterAndRankCommands(nextCommands, query)
+    const searchView = filterAndRankCommands(nextCommands, query)
+    visibleCommands.value = searchView.commands
+    commandMatches.value = searchView.matches
     recentCommandIds.value = query.trim() ? [] : readRecentCommandIds(Date.now(), nextCommands)
   }
 
@@ -415,6 +423,14 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                   <h3 class={styles.groupTitle}>{group.name}</h3>
                   <div class={styles.items}>
                     {group.commands.map(({ command, index }) => {
+                      const matches = currentCommandMatches.get(command.id) ?? []
+                      const labelMatch = findFieldMatch(matches, command.label ? 'label' : 'id')
+                      const descriptionMatch = findFieldMatch(matches, 'description')
+                      const idMatch = findFieldMatch(matches, 'id')
+                      const matchedTags = getMatchedTags(
+                        command.tags,
+                        findFieldMatch(matches, 'tags'),
+                      )
                       const isActive = command.isActive
                       const isPending = pendingCommandId === command.id
                       let className = styles.command
@@ -446,7 +462,7 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                         >
                           <span class={styles.commandHeading}>
                             <span class={styles.commandLabel} data-command-label="">
-                              {command.label ?? command.id}
+                              {renderMatchedText(command.label ?? command.id, labelMatch)}
                             </span>
                             <span class={styles.commandIndicators}>
                               {isActive ? <span class={styles.activeBadge}>Active</span> : null}
@@ -456,9 +472,26 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                             </span>
                           </span>
                           {command.description ? (
-                            <span class={styles.commandDescription}>{command.description}</span>
+                            <span class={styles.commandDescription} data-command-description="">
+                              {renderMatchedText(command.description, descriptionMatch)}
+                            </span>
                           ) : null}
-                          <span class={styles.commandId}>{command.id}</span>
+                          {matchedTags.length > 0 ? (
+                            <span class={styles.commandTags}>
+                              {matchedTags.map((tag, tagIndex) => (
+                                <span
+                                  class={styles.commandTag}
+                                  data-command-tag=""
+                                  key={`${tag.target}:${tagIndex}`}
+                                >
+                                  {renderMatchedText(tag.target, tag)}
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
+                          <span class={styles.commandId} data-command-id="">
+                            {renderMatchedText(command.id, idMatch)}
+                          </span>
                         </button>
                       )
                     })}
@@ -531,6 +564,60 @@ function SignInIcon() {
   )
 }
 
+type HighlightableText = {
+  target: string
+  ranges: readonly MatchRange[]
+}
+
+function findFieldMatch(matches: readonly FieldMatch[], key: string): FieldMatch | undefined {
+  return matches.find((match) => match.key === key)
+}
+
+function renderMatchedText(text: string, match: HighlightableText | undefined) {
+  if (!match) {
+    return text
+  }
+
+  return segments(match).map((segment, index) =>
+    segment.matched ? (
+      <mark class={styles.match} key={index}>
+        {segment.text}
+      </mark>
+    ) : (
+      <span key={index}>{segment.text}</span>
+    ),
+  )
+}
+
+function getMatchedTags(
+  tags: readonly string[],
+  match: FieldMatch | undefined,
+): HighlightableText[] {
+  if (!match) {
+    return []
+  }
+
+  const matchedTags: HighlightableText[] = []
+  let tagOffset = 0
+
+  for (const tag of tags) {
+    const tagEnd = tagOffset + tag.length
+    const ranges = match.ranges.flatMap((range) => {
+      const start = Math.max(range.start, tagOffset)
+      const end = Math.min(range.end, tagEnd)
+
+      return start < end ? [{ start: start - tagOffset, end: end - tagOffset }] : []
+    })
+
+    if (ranges.length > 0) {
+      matchedTags.push({ target: tag, ranges })
+    }
+    tagOffset = tagEnd + 1
+  }
+
+  return matchedTags
+}
+
 function haveMatchingCommandSnapshots(
   currentCommands: readonly CommandRecordSnapshot[],
   nextCommands: readonly CommandRecordSnapshot[],
@@ -549,28 +636,36 @@ function haveMatchingCommandSnapshots(
 function filterAndRankCommands(
   commands: CommandRecordSnapshot[],
   query: string,
-): CommandRecordSnapshot[] {
+): CommandSearchView {
   const now = Date.now()
   const launchHistory = readLaunchHistory(now)
   const launchCounts = createLaunchCounts(launchHistory)
   const trimmedQuery = query.trim()
 
   if (!trimmedQuery) {
-    return rankRecentCommands(
-      rankCommands(commands, launchCounts, true),
-      readRecentCommandIds(now, commands, launchHistory),
-    )
+    return {
+      commands: rankRecentCommands(
+        rankCommands(commands, launchCounts, true),
+        readRecentCommandIds(now, commands, launchHistory),
+      ),
+      matches: new Map(),
+    }
   }
 
-  return rankCommands(
-    searchFields(trimmedQuery, commands, [
-      { key: 'id', extract: (command) => command.id },
-      { key: 'label', extract: (command) => command.label },
-      { key: 'description', extract: (command) => command.description },
-      { key: 'tags', extract: (command) => command.tags.join(' ') },
-    ]).items.map((item) => item.value),
-    launchCounts,
-  )
+  const searchResult = searchFields(trimmedQuery, commands, [
+    { key: 'id', extract: (command) => command.id },
+    { key: 'label', extract: (command) => command.label },
+    { key: 'description', extract: (command) => command.description },
+    { key: 'tags', extract: (command) => command.tags.join(' ') },
+  ])
+
+  return {
+    commands: rankCommands(
+      searchResult.items.map((item) => item.value),
+      launchCounts,
+    ),
+    matches: new Map(searchResult.items.map((item) => [item.value.id, item.fields])),
+  }
 }
 
 function rankRecentCommands(

@@ -427,6 +427,41 @@ test('filters commands with fuzzysort2', async () => {
   expect(shadowRoot?.textContent).not.toContain('Many messages')
 })
 
+test('highlights matching fields and shows only contributing tags', async () => {
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Invoice catastrophe',
+      description: 'Expired card state',
+      tags: ['billing', 'declined-card'],
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+  const searchFor = async (query: string) => {
+    search!.value = query
+    search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+    await nextRender()
+    return shadowRoot?.querySelector<HTMLElement>('[role="option"]')
+  }
+  const getMarkedText = (command: HTMLElement, selector: string) =>
+    [...command.querySelectorAll(`${selector} mark`)].map((match) => match.textContent).join('')
+
+  let command = await searchFor('catastrophe')
+  expect(getMarkedText(command!, '[data-command-label]')).toBe('catastrophe')
+
+  command = await searchFor('paymentfailed')
+  expect(getMarkedText(command!, '[data-command-id]')).toBe('paymentFailed')
+
+  command = await searchFor('expired declined')
+  expect(getMarkedText(command!, '[data-command-description]')).toBe('Expired')
+  expect(
+    [...command!.querySelectorAll('[data-command-tag]')].map((tag) => tag.textContent),
+  ).toEqual(['declined-card'])
+  expect(getMarkedText(command!, '[data-command-tag]')).toBe('declined')
+})
+
 test('keeps the current filter when registered commands change', async () => {
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {

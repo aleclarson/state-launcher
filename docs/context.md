@@ -133,7 +133,7 @@ calls updated handlers without reattaching the registry handler.
 - custom panel title
 - initially open or closed state
 - an optional sign-out/sign-in toggle backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
-- fuzzy filtering across id, label, description, and tags, with launchable commands ranked first
+- fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches
 

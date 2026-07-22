@@ -109,7 +109,8 @@ action available. Omit `auth` to hide the toggle.
 The launcher keeps successful launches from the past 24 hours in local storage.
 When the search is empty, up to three registered commands with the most recent
 launches appear in a leading Recent group. Search results continue to use launch
-frequency as a ranking hint.
+frequency as a ranking hint, highlight the text that contributed to each match,
+and reveal only matching tags.
 
 `defineLaunchableState()` is annotated as side-effect free, and the package marks
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`

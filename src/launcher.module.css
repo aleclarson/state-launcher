@@ -6,6 +6,7 @@
   --state-launcher-danger-border: #f3c5c5;
   --state-launcher-danger-fg: #9f1d1d;
   --state-launcher-focus: #67b7dc;
+  --state-launcher-match-bg: #ffed9e;
   --state-launcher-muted-fg: #5d6b82;
   --state-launcher-panel-bg: #fff;
   --state-launcher-shadow: rgb(15 23 42 / 20%);
@@ -338,6 +339,29 @@
     font-size: 12px;
   }
 
+  .commandTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .commandTag {
+    background: var(--state-launcher-active-bg);
+    border: 1px solid var(--state-launcher-border);
+    border-radius: 999px;
+    color: var(--state-launcher-muted-fg);
+    font-size: 10px;
+    line-height: 1.4;
+    padding: 1px 6px;
+  }
+
+  .match {
+    background: var(--state-launcher-match-bg);
+    border-radius: 2px;
+    color: inherit;
+  }
+
   .commandId {
     color: var(--state-launcher-subtle-fg);
     font-size: 11px;
@@ -481,6 +505,7 @@
     --state-launcher-danger-border: #6f3036;
     --state-launcher-danger-fg: #ffb3ba;
     --state-launcher-focus: #79c6ef;
+    --state-launcher-match-bg: #645117;
     --state-launcher-muted-fg: #a8b3c4;
     --state-launcher-panel-bg: #111827;
     --state-launcher-shadow: rgb(0 0 0 / 42%);
