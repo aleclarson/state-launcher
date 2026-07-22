@@ -180,6 +180,12 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   )
 
   function hideWhenFocusLeaves(event: TargetedFocusEvent<HTMLElement>) {
+    // Applying pending state can move focus when a control becomes unavailable.
+    // Keep the panel visible until the in-flight operation settles.
+    if (pendingCommandIdRef.current || isClearPendingRef.current) {
+      return
+    }
+
     // Mobile drawers have explicit dismissal controls, and closing on blur can
     // remove a tapped command before iOS dispatches its click.
     if (window.matchMedia(mobileViewportQuery).matches) {
@@ -451,7 +457,9 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                           aria-disabled={isCommandInteractionPending || !command.hasLaunchHandler}
                           aria-busy={isPending || undefined}
                           class={className}
-                          disabled={isCommandInteractionPending || !command.hasLaunchHandler}
+                          disabled={
+                            (isCommandInteractionPending && !isPending) || !command.hasLaunchHandler
+                          }
                           key={command.id}
                           onClick={() => {
                             void activateCommand(command)

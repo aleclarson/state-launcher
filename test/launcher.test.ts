@@ -737,12 +737,18 @@ test('shows pending launch feedback and prevents duplicate activation', async ()
   command?.click()
   await nextRender()
 
-  expect(command?.disabled).toBe(true)
+  expect(command?.disabled).toBe(false)
+  expect(command?.getAttribute('aria-disabled')).toBe('true')
   expect(command?.getAttribute('aria-busy')).toBe('true')
   expect(command?.querySelector('[aria-hidden="true"]')).toBeTruthy()
   expect(shadowRoot?.querySelector('[role="status"]')?.textContent).toBe(
     'Launching Payment failed…',
   )
+
+  command?.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
 
   command?.click()
   expect(launch).toHaveBeenCalledOnce()
