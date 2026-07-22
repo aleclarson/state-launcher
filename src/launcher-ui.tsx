@@ -270,7 +270,39 @@ export function LauncherShell({ isOpen, position, title }: LauncherProps) {
             onPointerUp={stopSwipe}
           >
             <span aria-hidden="true" class={styles.dragHandle} />
-            <h2>{title}</h2>
+            <div class={styles.titleBar}>
+              <h2>{title}</h2>
+              <button
+                aria-label="Refresh page"
+                class={styles.refreshButton}
+                onClick={() => {
+                  window.location.reload()
+                }}
+                onPointerDown={(event) => {
+                  event.stopPropagation()
+                }}
+                type="button"
+              >
+                {/* Icon from Tabler Icons by Paweł Kuna: https://github.com/tabler/tabler-icons/blob/master/LICENSE */}
+                <svg
+                  aria-hidden="true"
+                  class={styles.refreshIcon}
+                  fill="none"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <g
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                  >
+                    <path d="M19.933 13.041a8 8 0 1 1-9.925-8.788c3.899-1 7.935 1.007 9.425 4.747" />
+                    <path d="M20 4v5h-5" />
+                  </g>
+                </svg>
+              </button>
+            </div>
           </header>
           <input
             aria-label="Filter commands"

@@ -88,6 +88,44 @@
     }
   }
 
+  .titleBar {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .refreshButton {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: var(--state-launcher-muted-fg);
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    height: 28px;
+    justify-content: center;
+    margin: -7px -7px -7px 8px;
+    padding: 5px;
+    width: 28px;
+
+    &:hover {
+      background: var(--state-launcher-active-bg);
+      color: var(--state-launcher-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--state-launcher-focus);
+      outline-offset: -2px;
+    }
+
+    .refreshIcon {
+      display: block;
+      height: 18px;
+      width: 18px;
+    }
+  }
+
   .empty {
     color: var(--state-launcher-muted-fg);
     flex-shrink: 0;

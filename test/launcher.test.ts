@@ -111,6 +111,19 @@ test('renders mobile drawer dismissal affordances', () => {
   expect(launcherCss).toContain('touch-action: none')
 })
 
+test('refreshes the page from the title bar', () => {
+  const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
+  mountStateLauncher({ initiallyOpen: true })
+  const refreshButton = getLauncherShadowRoot()?.querySelector<HTMLButtonElement>(
+    'header [aria-label="Refresh page"]',
+  )
+
+  refreshButton?.click()
+
+  expect(refreshButton).toBeTruthy()
+  expect(reload).toHaveBeenCalledOnce()
+})
+
 test('hides the launcher when the area above the mobile drawer is tapped', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
