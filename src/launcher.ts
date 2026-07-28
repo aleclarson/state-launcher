@@ -47,6 +47,7 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       launcherIsolet.update(props)
     },
     position,
+    showPathname: options.showPathname ?? false,
     title: options.title ?? defaultTitle,
   }
   let mounted = true

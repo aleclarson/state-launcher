@@ -64,6 +64,7 @@ const launcher = mountStateLauncher({
   target: document.body,
   initiallyOpen: false,
   position: 'bottom-right',
+  showPathname: true,
   title: 'App states',
 })
 
@@ -83,6 +84,10 @@ No consumer Shadow DOM overrides are needed.
 `mountStateLauncher()` does not render its own persistent trigger. Use the
 returned controller to wire the launcher to an app-owned button, menu item,
 keyboard shortcut, or test helper.
+
+Set `showPathname: true` to add a compact navigation bar. It displays the current
+pathname, provides a home button for `/`, and lets you select the pathname to
+edit it and navigate to another page.
 
 When a command is launched, the launcher marks it as active. Reopen
 the panel and choose Clear to abort its launch signal and run its returned
@@ -104,9 +109,10 @@ mountStateLauncher({
 ```
 
 The toggle initially offers the action opposite `isSignedIn`. After an action
-succeeds, it switches to the opposite action. While an async handler is pending
-the toggle is disabled; if a handler rejects, the launcher displays the error
-and keeps the current action available. Omit `auth` to hide the toggle.
+succeeds, it switches to the opposite action and briefly confirms the new state
+without closing the launcher. While an async handler is pending the toggle is
+disabled; if a handler rejects, the launcher displays the error and keeps the
+current action available. Omit `auth` to hide the toggle.
 
 The launcher keeps successful launches from the past 24 hours in local storage.
 When the search is empty, up to three registered commands with the most recent

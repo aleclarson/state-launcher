@@ -135,7 +135,77 @@
       display: block;
       height: 18px;
       width: 18px;
+
+      &.spinning {
+        animation: state-launcher-spin 700ms linear infinite;
+      }
     }
+  }
+
+  .pathnameBar {
+    align-items: center;
+    border-bottom: 1px solid var(--state-launcher-command-border);
+    display: flex;
+    flex-shrink: 0;
+    min-height: 38px;
+    padding: 5px 8px;
+  }
+
+  .pathnameHome,
+  .pathnameValue {
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: var(--state-launcher-muted-fg);
+    cursor: pointer;
+    font: inherit;
+
+    &:hover {
+      background: var(--state-launcher-active-bg);
+      color: var(--state-launcher-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--state-launcher-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .pathnameHome {
+    align-items: center;
+    display: inline-flex;
+    flex-shrink: 0;
+    height: 28px;
+    justify-content: center;
+    padding: 5px;
+    width: 28px;
+  }
+
+  .pathnameHomeIcon {
+    height: 16px;
+    width: 16px;
+  }
+
+  .pathnameValue {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    padding: 5px 7px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pathnameInput {
+    background: var(--state-launcher-panel-bg);
+    border: 1px solid var(--state-launcher-focus);
+    border-radius: 4px;
+    color: var(--state-launcher-text);
+    flex: 1;
+    font: inherit;
+    min-width: 0;
+    outline: none;
+    padding: 4px 6px;
   }
 
   .empty {
@@ -201,6 +271,11 @@
     flex-shrink: 0;
     height: 7px;
     width: 7px;
+  }
+
+  .authConfirmation {
+    color: var(--state-launcher-text);
+    min-height: 38px;
   }
 
   .clearActiveState {

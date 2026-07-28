@@ -160,8 +160,14 @@ function App() {
     }
 
     launcherRef.current = mountStateLauncher({
+      auth: {
+        isSignedIn: false,
+        onSignIn: () => sleep(400),
+        onSignOut: () => sleep(400),
+      },
       initiallyOpen: true,
       position,
+      showPathname: true,
       title: 'Playground states',
     })
 

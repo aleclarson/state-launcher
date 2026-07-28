@@ -21,6 +21,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
@@ -129,17 +130,33 @@ test('renders mobile drawer dismissal affordances', () => {
   expect(launcherCss).toContain('touch-action: none')
 })
 
-test('refreshes the page from the title bar', () => {
+test('keeps the launcher visible and spins before refreshing the page', async () => {
+  vi.useFakeTimers()
   const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
   mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
   const refreshButton = getLauncherShadowRoot()?.querySelector<HTMLButtonElement>(
     'header [aria-label="Refresh page"]',
   )
 
   refreshButton?.click()
+  await Promise.resolve()
 
   expect(refreshButton).toBeTruthy()
+  expect(refreshButton?.disabled).toBe(true)
+  expect(refreshButton?.querySelector('svg')?.classList.toString()).toContain('spinning')
+  expect(reload).not.toHaveBeenCalled()
+
+  shadowRoot
+    ?.querySelector('[role="dialog"]')
+    ?.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }))
+  await Promise.resolve()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+
+  await vi.advanceTimersByTimeAsync(500)
   expect(reload).toHaveBeenCalledOnce()
+  vi.useRealTimers()
 })
 
 test('shows an auth toggle with the configured authentication state', async () => {
@@ -168,6 +185,7 @@ test('shows an auth toggle with the configured authentication state', async () =
 
   expect(onSignIn).toHaveBeenCalledOnce()
   expect(onSignOut).not.toHaveBeenCalled()
+  expect(getLauncherShadowRoot()?.textContent).toContain('Now signed in')
 
   const signOutButton =
     getLauncherShadowRoot()?.querySelector<HTMLButtonElement>('[aria-label="Sign out"]')
@@ -177,6 +195,109 @@ test('shows an auth toggle with the configured authentication state', async () =
   expect(signOutButton).toBeTruthy()
   expect(onSignOut).toHaveBeenCalledOnce()
   expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign in"]')).toBeTruthy()
+})
+
+test('keeps the launcher visible while authentication is pending', async () => {
+  let completeSignIn: (() => void) | undefined
+  const onSignIn = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        completeSignIn = resolve
+      }),
+  )
+
+  mountStateLauncher({
+    auth: { isSignedIn: false, onSignIn, onSignOut: vi.fn() },
+    initiallyOpen: true,
+  })
+  const shadowRoot = getLauncherShadowRoot()
+  const signInButton = shadowRoot?.querySelector<HTMLButtonElement>('header [aria-label="Sign in"]')
+
+  signInButton?.click()
+  shadowRoot
+    ?.querySelector('[role="dialog"]')
+    ?.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }))
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+
+  completeSignIn?.()
+  await nextRender()
+
+  expect(shadowRoot?.textContent).toContain('Now signed in')
+
+  shadowRoot
+    ?.querySelector('[role="dialog"]')
+    ?.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }))
+  await nextRender()
+
+  expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
+})
+
+test('temporarily shows auth confirmation in place of the active state', async () => {
+  vi.useFakeTimers()
+  const activeCommand = defineLaunchableState('active.command', {
+    label: 'Active command',
+    launch() {},
+  })
+  registerLaunchableState([activeCommand])
+  await activeCommand.launch()
+
+  mountStateLauncher({
+    auth: { isSignedIn: true, onSignIn: vi.fn(), onSignOut: vi.fn() },
+    initiallyOpen: true,
+  })
+  const shadowRoot = getLauncherShadowRoot()
+
+  expect(shadowRoot?.textContent).toContain('Active: Active command')
+
+  shadowRoot?.querySelector<HTMLButtonElement>('header [aria-label="Sign out"]')?.click()
+  await Promise.resolve()
+  await Promise.resolve()
+
+  expect(shadowRoot?.textContent).toContain('Now signed out')
+  expect(shadowRoot?.textContent).not.toContain('Active: Active command')
+
+  await vi.advanceTimersByTimeAsync(2500)
+
+  expect(shadowRoot?.textContent).toContain('Active: Active command')
+  vi.useRealTimers()
+})
+
+test('optionally renders an editable pathname bar with home navigation', async () => {
+  const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
+
+  mountStateLauncher({ initiallyOpen: true })
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Edit current pathname"]')).toBeNull()
+
+  document.body.replaceChildren()
+  mountStateLauncher({ initiallyOpen: true, showPathname: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const pathnameButton = shadowRoot?.querySelector<HTMLButtonElement>(
+    '[aria-label="Edit current pathname"]',
+  )
+
+  expect(pathnameButton?.textContent).toBe(window.location.pathname)
+  pathnameButton?.click()
+  await nextRender()
+
+  const pathnameInput = shadowRoot?.querySelector<HTMLInputElement>('input[aria-label="Pathname"]')
+  expect(pathnameInput).toBeTruthy()
+  expect(pathnameInput?.value).toBe(window.location.pathname)
+
+  if (pathnameInput) {
+    pathnameInput.value = '/settings/profile?tab=security'
+    pathnameInput.form?.dispatchEvent(
+      new SubmitEvent('submit', { bubbles: true, cancelable: true }),
+    )
+  }
+
+  expect(assign).toHaveBeenCalledWith(
+    new URL('/settings/profile?tab=security', window.location.href).href,
+  )
+
+  shadowRoot?.querySelector<HTMLButtonElement>('[aria-label="Go to home page"]')?.click()
+  expect(assign).toHaveBeenLastCalledWith(new URL('/', window.location.href).href)
 })
 
 test('keeps the current auth action when its handler fails', async () => {

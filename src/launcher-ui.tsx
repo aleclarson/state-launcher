@@ -21,11 +21,14 @@ const launchHistoryWindowMs = 24 * 60 * 60 * 1000
 const recentCommandLimit = 3
 const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
+const authConfirmationDurationMs = 2500
+const refreshDelayMs = 500
 
 export type LauncherProps = {
   auth?: MountStateLauncherOptions['auth']
   isOpen: Signal<boolean>
   position: NonNullable<MountStateLauncherOptions['position']>
+  showPathname: boolean
   title: string
 }
 
@@ -36,17 +39,26 @@ type CommandSearchView = {
   matches: ReadonlyMap<string, readonly FieldMatch[]>
 }
 
-export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) {
+export function LauncherShell({ auth, isOpen, position, showPathname, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const commandsRef = useRef(commands)
+  const [authConfirmation, setAuthConfirmation] = useState<'signed-in' | 'signed-out'>()
   const [launchError, setLaunchError] = useState<string>()
   const [pendingCommandId, setPendingCommandId] = useState<string>()
   const [isAuthPending, setIsAuthPending] = useState(false)
   const [isClearPending, setIsClearPending] = useState(false)
+  const [isEditingPathname, setIsEditingPathname] = useState(false)
+  const [isRefreshPending, setIsRefreshPending] = useState(false)
   const [isSignedIn, setIsSignedIn] = useState(() => auth?.isSignedIn ?? false)
+  const authConfirmationTimeoutRef = useRef<number>()
+  const isAuthDismissSuppressedRef = useRef(false)
+  const isAuthPendingRef = useRef(false)
   const isClearPendingRef = useRef(false)
+  const isRefreshPendingRef = useRef(false)
   const launcherRef = useRef<HTMLDivElement | null>(null)
+  const pathnameInputRef = useRef<HTMLInputElement | null>(null)
   const pendingCommandIdRef = useRef<string>()
+  const refreshTimeoutRef = useRef<number>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
@@ -78,21 +90,50 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   }
 
   async function toggleAuthentication() {
-    if (!auth || isAuthPending) {
+    if (!auth || isAuthPendingRef.current) {
       return
     }
 
+    const wasSignedIn = isSignedIn
+    window.clearTimeout(authConfirmationTimeoutRef.current)
+    isAuthDismissSuppressedRef.current = true
+    isAuthPendingRef.current = true
+    setAuthConfirmation(undefined)
     setIsAuthPending(true)
 
     try {
-      await (isSignedIn ? auth.onSignOut() : auth.onSignIn())
-      setIsSignedIn(!isSignedIn)
+      await (wasSignedIn ? auth.onSignOut() : auth.onSignIn())
+      setIsSignedIn(!wasSignedIn)
+      setAuthConfirmation(wasSignedIn ? 'signed-out' : 'signed-in')
+      authConfirmationTimeoutRef.current = window.setTimeout(() => {
+        isAuthDismissSuppressedRef.current = false
+        setAuthConfirmation(undefined)
+      }, authConfirmationDurationMs)
       setLaunchError(undefined)
     } catch (error) {
+      isAuthDismissSuppressedRef.current = false
       setLaunchError(error instanceof Error ? error.message : String(error))
     } finally {
+      isAuthPendingRef.current = false
       setIsAuthPending(false)
     }
+  }
+
+  function refreshPage() {
+    if (isRefreshPendingRef.current) {
+      return
+    }
+
+    isRefreshPendingRef.current = true
+    setIsRefreshPending(true)
+    refreshTimeoutRef.current = window.setTimeout(() => {
+      window.location.reload()
+    }, refreshDelayMs)
+  }
+
+  function navigateToPathname(pathname: string) {
+    const destination = pathname.trim() || '/'
+    window.location.assign(new URL(destination, window.location.href).href)
   }
 
   async function activateCommand(command: CommandRecordSnapshot, preserveSearch = false) {
@@ -127,7 +168,12 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   }
 
   async function clearCurrentState() {
-    if (pendingCommandIdRef.current || isClearPendingRef.current) {
+    if (
+      pendingCommandIdRef.current ||
+      isAuthDismissSuppressedRef.current ||
+      isClearPendingRef.current ||
+      isRefreshPendingRef.current
+    ) {
       return
     }
 
@@ -286,6 +332,21 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
     }
   }, [isLauncherOpen])
 
+  useLayoutEffect(() => {
+    if (isEditingPathname) {
+      pathnameInputRef.current?.focus()
+      pathnameInputRef.current?.select()
+    }
+  }, [isEditingPathname])
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(authConfirmationTimeoutRef.current)
+      window.clearTimeout(refreshTimeoutRef.current)
+    },
+    [],
+  )
+
   useEffect(() => {
     const launcher = launcherRef.current
     const viewport = window.visualViewport
@@ -358,6 +419,7 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                       void toggleAuthentication()
                     }}
                     onPointerDown={(event) => {
+                      event.preventDefault()
                       event.stopPropagation()
                     }}
                     type="button"
@@ -368,19 +430,67 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                 <button
                   aria-label="Refresh page"
                   class={styles.titleBarButton}
-                  onClick={() => {
-                    window.location.reload()
-                  }}
+                  disabled={isRefreshPending}
+                  onClick={refreshPage}
                   onPointerDown={(event) => {
+                    event.preventDefault()
                     event.stopPropagation()
                   }}
                   type="button"
                 >
-                  <RefreshIcon />
+                  <RefreshIcon isSpinning={isRefreshPending} />
                 </button>
               </div>
             </div>
           </header>
+          {showPathname ? (
+            <form
+              class={styles.pathnameBar}
+              onSubmit={(event) => {
+                event.preventDefault()
+                navigateToPathname(pathnameInputRef.current?.value ?? window.location.pathname)
+              }}
+            >
+              <button
+                aria-label="Go to home page"
+                class={styles.pathnameHome}
+                onClick={() => {
+                  navigateToPathname('/')
+                }}
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                }}
+                type="button"
+              >
+                <HomeIcon />
+              </button>
+              {isEditingPathname ? (
+                <input
+                  aria-label="Pathname"
+                  class={styles.pathnameInput}
+                  defaultValue={window.location.pathname}
+                  onBlur={() => {
+                    setIsEditingPathname(false)
+                  }}
+                  ref={pathnameInputRef}
+                />
+              ) : (
+                <button
+                  aria-label="Edit current pathname"
+                  class={styles.pathnameValue}
+                  onClick={() => {
+                    setIsEditingPathname(true)
+                  }}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  type="button"
+                >
+                  {window.location.pathname}
+                </button>
+              )}
+            </form>
+          ) : null}
           <input
             aria-label="Filter commands"
             class={styles.searchInput}
@@ -395,7 +505,14 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
                 ? 'Clearing active state…'
                 : ''}
           </div>
-          {activeCommand ? (
+          {authConfirmation ? (
+            <div class={`${styles.activeState} ${styles.authConfirmation}`} role="status">
+              <span class={styles.activeStateLabel}>
+                <span aria-hidden="true" class={styles.activeStateDot} />
+                Now {authConfirmation === 'signed-in' ? 'signed in' : 'signed out'}
+              </span>
+            </div>
+          ) : activeCommand ? (
             <div class={styles.activeState}>
               <span class={styles.activeStateLabel}>
                 <span aria-hidden="true" class={styles.activeStateDot} />
@@ -514,12 +631,12 @@ export function LauncherShell({ auth, isOpen, position, title }: LauncherProps) 
   )
 }
 
-function RefreshIcon() {
+function RefreshIcon({ isSpinning = false }: { isSpinning?: boolean }) {
   return (
     // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
     <svg
       aria-hidden="true"
-      class={styles.titleBarIcon}
+      class={`${styles.titleBarIcon} ${isSpinning ? styles.spinning : ''}`}
       fill="none"
       focusable="false"
       viewBox="0 0 24 24"
@@ -528,6 +645,24 @@ function RefreshIcon() {
       <path
         fill="currentColor"
         d="M20 9a1 1 0 0 1 1 1v1a8 8 0 0 1-8 8H9.414l.793.793a1 1 0 0 1-1.414 1.414l-2.496-2.496a1 1 0 0 1-.287-.567L6 17.991a1 1 0 0 1 .237-.638l.056-.06l2.5-2.5a1 1 0 0 1 1.414 1.414L9.414 17H13a6 6 0 0 0 6-6v-1a1 1 0 0 1 1-1m-4.793-6.207l2.5 2.5a1 1 0 0 1 0 1.414l-2.5 2.5a1 1 0 1 1-1.414-1.414L14.586 7H11a6 6 0 0 0-6 6v1a1 1 0 1 1-2 0v-1a8 8 0 0 1 8-8h3.586l-.793-.793a1 1 0 0 1 1.414-1.414"
+      />
+    </svg>
+  )
+}
+
+function HomeIcon() {
+  return (
+    // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
+    <svg
+      aria-hidden="true"
+      class={styles.pathnameHomeIcon}
+      fill="none"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path
+        fill="currentColor"
+        d="M13.2 2.4a2 2 0 0 0-2.4 0l-8 6A2 2 0 0 0 2 10v9a2 2 0 0 0 2 2h5v-6h6v6h5a2 2 0 0 0 2-2v-9a2 2 0 0 0-.8-1.6z"
       />
     </svg>
   )

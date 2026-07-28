@@ -25,6 +25,7 @@ export type MountStateLauncherOptions = {
   target?: HTMLElement;
   initiallyOpen?: boolean;
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  showPathname?: boolean;
   title?: string;
 };
 export type StateLauncherAuthOptions = {

@@ -22,6 +22,11 @@ export type MountStateLauncherOptions = {
    * to `bottom-right`.
    */
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+  /**
+   * Show the current pathname with controls to navigate home or edit the path.
+   * Defaults to `false`.
+   */
+  showPathname?: boolean
   /** Accessible panel title. Defaults to `Commands`. */
   title?: string
 }
