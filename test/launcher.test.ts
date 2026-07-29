@@ -130,8 +130,7 @@ test('renders mobile drawer dismissal affordances', () => {
   expect(launcherCss).toContain('touch-action: none')
 })
 
-test('keeps the launcher visible and spins before refreshing the page', async () => {
-  vi.useFakeTimers()
+test('keeps the launcher visible and spins while refreshing the page immediately', async () => {
   const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
@@ -145,7 +144,7 @@ test('keeps the launcher visible and spins before refreshing the page', async ()
   expect(refreshButton).toBeTruthy()
   expect(refreshButton?.disabled).toBe(true)
   expect(refreshButton?.querySelector('svg')?.classList.toString()).toContain('spinning')
-  expect(reload).not.toHaveBeenCalled()
+  expect(reload).toHaveBeenCalledOnce()
 
   shadowRoot
     ?.querySelector('[role="dialog"]')
@@ -153,10 +152,6 @@ test('keeps the launcher visible and spins before refreshing the page', async ()
   await Promise.resolve()
 
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeTruthy()
-
-  await vi.advanceTimersByTimeAsync(500)
-  expect(reload).toHaveBeenCalledOnce()
-  vi.useRealTimers()
 })
 
 test('shows an auth toggle with the configured authentication state', async () => {

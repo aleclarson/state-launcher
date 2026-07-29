@@ -22,7 +22,6 @@ const recentCommandLimit = 3
 const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
 const authConfirmationDurationMs = 2500
-const refreshDelayMs = 500
 
 export type LauncherProps = {
   auth?: MountStateLauncherOptions['auth']
@@ -58,7 +57,6 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const launcherRef = useRef<HTMLDivElement | null>(null)
   const pathnameInputRef = useRef<HTMLInputElement | null>(null)
   const pendingCommandIdRef = useRef<string>()
-  const refreshTimeoutRef = useRef<number>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
@@ -126,9 +124,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
 
     isRefreshPendingRef.current = true
     setIsRefreshPending(true)
-    refreshTimeoutRef.current = window.setTimeout(() => {
-      window.location.reload()
-    }, refreshDelayMs)
+    window.location.reload()
   }
 
   function navigateToPathname(pathname: string) {
@@ -342,7 +338,6 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   useEffect(
     () => () => {
       window.clearTimeout(authConfirmationTimeoutRef.current)
-      window.clearTimeout(refreshTimeoutRef.current)
     },
     [],
   )
