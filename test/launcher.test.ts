@@ -297,6 +297,10 @@ test('temporarily shows auth confirmation in place of the active state', async (
 test('optionally renders an editable pathname bar with home navigation', async () => {
   const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
 
+  expect(launcherCss).toMatch(
+    /\.pathnameValue \{[\s\S]*?border: 1px solid var\(--state-launcher-border\)/,
+  )
+
   mountStateLauncher({ initiallyOpen: true })
   expect(getLauncherShadowRoot()?.querySelector('[aria-label="Edit current pathname"]')).toBeNull()
 
