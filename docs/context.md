@@ -136,7 +136,7 @@ calls updated handlers without reattaching the registry handler.
 - swipe-down dismissal from the pill above the drawer title, with slide-in and slide-out transitions
 - custom panel title
 - initially open or closed state
-- an optional compact pathname bar with home and editable navigation controls
+- an optional compact pathname bar with editable navigation and a home destination that can depend on the current authentication state
 - an optional sign-out/sign-in toggle initialized by `auth.isSignedIn` and backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter

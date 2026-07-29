@@ -22,6 +22,9 @@ export type MountedStateLauncher = {
 };
 export type MountStateLauncherOptions = {
   auth?: StateLauncherAuthOptions;
+  homePath?: (_: {
+    isSignedIn: boolean;
+  }) => string;
   target?: HTMLElement;
   initiallyOpen?: boolean;
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';

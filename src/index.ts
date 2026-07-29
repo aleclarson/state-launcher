@@ -12,6 +12,11 @@ export { mountStateLauncher } from './launcher'
 export type MountStateLauncherOptions = {
   /** Optional authentication actions shown in the launcher title bar. */
   auth?: StateLauncherAuthOptions
+  /**
+   * Resolve the pathname used by the navigation bar's home button. Receives the
+   * launcher's current authentication state and defaults to `/`.
+   */
+  homePath?: (context: { isSignedIn: boolean }) => string
   /** Element that receives the launcher host. Defaults to `document.body`. */
   target?: HTMLElement
   /** Whether the command panel is open immediately after mount. Defaults to `false`. */

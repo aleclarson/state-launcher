@@ -25,6 +25,7 @@ const authConfirmationDurationMs = 2500
 
 export type LauncherProps = {
   auth?: MountStateLauncherOptions['auth']
+  homePath?: MountStateLauncherOptions['homePath']
   isOpen: Signal<boolean>
   position: NonNullable<MountStateLauncherOptions['position']>
   showPathname: boolean
@@ -38,7 +39,14 @@ type CommandSearchView = {
   matches: ReadonlyMap<string, readonly FieldMatch[]>
 }
 
-export function LauncherShell({ auth, isOpen, position, showPathname, title }: LauncherProps) {
+export function LauncherShell({
+  auth,
+  homePath,
+  isOpen,
+  position,
+  showPathname,
+  title,
+}: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const commandsRef = useRef(commands)
   const [authConfirmation, setAuthConfirmation] = useState<'signed-in' | 'signed-out'>()
@@ -450,7 +458,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
                 aria-label="Go to home page"
                 class={styles.pathnameHome}
                 onClick={() => {
-                  navigateToPathname('/')
+                  navigateToPathname(homePath?.({ isSignedIn }) ?? '/')
                 }}
                 onPointerDown={(event) => {
                   event.preventDefault()

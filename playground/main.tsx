@@ -165,6 +165,7 @@ function App() {
         onSignIn: () => sleep(400),
         onSignOut: () => sleep(400),
       },
+      homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
       initiallyOpen: true,
       position,
       showPathname: true,

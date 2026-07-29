@@ -87,7 +87,15 @@ keyboard shortcut, or test helper.
 
 Set `showPathname: true` to add a compact navigation bar. It displays the current
 pathname, provides a home button for `/`, and lets you select the pathname to
-edit it and navigate to another page.
+edit it and navigate to another page. Use `homePath` when the home destination
+depends on the launcher's current authentication state:
+
+```ts
+mountStateLauncher({
+  showPathname: true,
+  homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
+})
+```
 
 When a command is launched, the launcher marks it as active. Reopen
 the panel and choose Clear to abort its launch signal and run its returned

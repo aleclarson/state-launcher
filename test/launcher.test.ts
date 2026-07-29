@@ -295,6 +295,34 @@ test('optionally renders an editable pathname bar with home navigation', async (
   expect(assign).toHaveBeenLastCalledWith(new URL('/', window.location.href).href)
 })
 
+test('resolves the home pathname from the current authentication state', async () => {
+  const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
+  const homePath = vi.fn(({ isSignedIn }: { isSignedIn: boolean }) =>
+    isSignedIn ? '/dashboard' : '/welcome',
+  )
+
+  mountStateLauncher({
+    auth: { isSignedIn: false, onSignIn: vi.fn(), onSignOut: vi.fn() },
+    homePath,
+    initiallyOpen: true,
+    showPathname: true,
+  })
+  const shadowRoot = getLauncherShadowRoot()
+  const homeButton = shadowRoot?.querySelector<HTMLButtonElement>('[aria-label="Go to home page"]')
+
+  homeButton?.click()
+
+  expect(homePath).toHaveBeenLastCalledWith({ isSignedIn: false })
+  expect(assign).toHaveBeenLastCalledWith(new URL('/welcome', window.location.href).href)
+
+  shadowRoot?.querySelector<HTMLButtonElement>('[aria-label="Sign in"]')?.click()
+  await nextRender()
+  homeButton?.click()
+
+  expect(homePath).toHaveBeenLastCalledWith({ isSignedIn: true })
+  expect(assign).toHaveBeenLastCalledWith(new URL('/dashboard', window.location.href).href)
+})
+
 test('keeps the current auth action when its handler fails', async () => {
   mountStateLauncher({
     auth: {
