@@ -93,7 +93,12 @@ depends on the launcher's current authentication state:
 ```ts
 mountStateLauncher({
   showPathname: true,
-  homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
+  auth: {
+    isSignedIn: Boolean(currentUser),
+    onSignIn: () => signInAsTestUser(),
+    onSignOut: () => signOutTestUser(),
+    homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
+  },
 })
 ```
 

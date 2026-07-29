@@ -35,7 +35,6 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
   const isOpen = signal(Boolean(options.initiallyOpen))
   const props = {
     auth: options.auth,
-    homePath: options.homePath,
     isOpen,
     setOpen(nextOpen: boolean) {
       if (!mounted) {

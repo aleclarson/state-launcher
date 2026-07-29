@@ -22,9 +22,6 @@ export type MountedStateLauncher = {
 };
 export type MountStateLauncherOptions = {
   auth?: StateLauncherAuthOptions;
-  homePath?: (_: {
-    isSignedIn: boolean;
-  }) => string;
   target?: HTMLElement;
   initiallyOpen?: boolean;
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
@@ -32,6 +29,9 @@ export type MountStateLauncherOptions = {
   title?: string;
 };
 export type StateLauncherAuthOptions = {
+  homePath?: (_: {
+    isSignedIn: boolean;
+  }) => string;
   isSignedIn: boolean;
   onSignIn: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;

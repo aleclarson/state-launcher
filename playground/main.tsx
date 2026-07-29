@@ -161,11 +161,11 @@ function App() {
 
     launcherRef.current = mountStateLauncher({
       auth: {
+        homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
         isSignedIn: false,
         onSignIn: () => sleep(400),
         onSignOut: () => sleep(400),
       },
-      homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
       initiallyOpen: true,
       position,
       showPathname: true,

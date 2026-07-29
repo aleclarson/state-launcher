@@ -302,8 +302,7 @@ test('resolves the home pathname from the current authentication state', async (
   )
 
   mountStateLauncher({
-    auth: { isSignedIn: false, onSignIn: vi.fn(), onSignOut: vi.fn() },
-    homePath,
+    auth: { homePath, isSignedIn: false, onSignIn: vi.fn(), onSignOut: vi.fn() },
     initiallyOpen: true,
     showPathname: true,
   })
