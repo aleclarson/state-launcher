@@ -939,6 +939,8 @@ test('shows pending launch feedback and prevents duplicate activation', async ()
   expect(command?.getAttribute('aria-disabled')).toBe('true')
   expect(command?.getAttribute('aria-busy')).toBe('true')
   expect(command?.querySelector('[aria-hidden="true"]')).toBeTruthy()
+  expect(shadowRoot?.querySelector('[aria-current="true"]')).toBeNull()
+  expect(shadowRoot?.textContent).not.toContain('Active: Payment failed')
   expect(shadowRoot?.querySelector('[role="status"]')?.textContent).toBe(
     'Launching Payment failed…',
   )
@@ -958,8 +960,14 @@ test('shows pending launch feedback and prevents duplicate activation', async ()
 })
 
 test('shows and clears the active state', async () => {
+  let finishCleanup: (() => void) | undefined
   let launchSignal: AbortSignal | undefined
-  const cleanup = vi.fn()
+  const cleanup = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finishCleanup = resolve
+      }),
+  )
   registerLaunchableState([
     defineLaunchableState('billing.paymentFailed', {
       label: 'Payment failed',
@@ -992,6 +1000,13 @@ test('shows and clears the active state', async () => {
   expect(clearButton).toBeTruthy()
   expect(launchSignal?.aborted).toBe(true)
   expect(cleanup).toHaveBeenCalledOnce()
+  expect(shadowRoot?.querySelector('[aria-current="true"]')).toBeTruthy()
+  expect(shadowRoot?.textContent).toContain('Active: Payment failed')
+  expect(clearButton?.textContent).toBe('Clearing…')
+
+  finishCleanup?.()
+  await nextRender()
+
   expect(shadowRoot?.querySelector('[aria-current="true"]')).toBeNull()
   expect(shadowRoot?.textContent).not.toContain('Active: Payment failed')
   expect(getCommandButton('Payment failed')?.disabled).toBe(false)

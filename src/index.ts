@@ -77,7 +77,7 @@ export type LaunchCleanup = () => void | Promise<void>
 
 /** Per-handler context for one active launch. */
 export type LaunchContext = {
-  /** Aborted when a different command id is activated or the active command is cleared. */
+  /** Aborted when a different command launch begins or the active command is cleared. */
   readonly signal: AbortSignal
   /**
    * Register cleanup as setup resources are acquired. Deferred cleanups run in

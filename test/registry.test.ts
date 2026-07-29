@@ -163,6 +163,57 @@ test('runs launch cleanups when another state is activated', async () => {
   expect(calls).toEqual(['cleanup', 'second launch'])
 })
 
+test('commits active state only after teardown and setup resolve', async () => {
+  let finishCleanup: (() => void) | undefined
+  let finishSetup: (() => void) | undefined
+  let markSetupStarted: (() => void) | undefined
+  const setupStarted = new Promise<void>((resolve) => {
+    markSetupStarted = resolve
+  })
+  const first = defineLaunchableState('billing.paymentFailed', {
+    launch() {
+      return () =>
+        new Promise<void>((resolve) => {
+          finishCleanup = resolve
+        })
+    },
+  })
+  const second = defineLaunchableState('inbox.manyMessages', {
+    launch() {
+      markSetupStarted?.()
+      return new Promise<void>((resolve) => {
+        finishSetup = resolve
+      })
+    },
+  })
+  registerLaunchableState([first, second])
+
+  await first.launch()
+  const secondLaunch = second.launch()
+  await Promise.resolve()
+
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({ id: 'billing.paymentFailed', isActive: true }),
+    expect.objectContaining({ id: 'inbox.manyMessages', isActive: false }),
+  ])
+
+  finishCleanup?.()
+  await setupStarted
+
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({ id: 'billing.paymentFailed', isActive: false }),
+    expect.objectContaining({ id: 'inbox.manyMessages', isActive: false }),
+  ])
+
+  finishSetup?.()
+  await secondLaunch
+
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({ id: 'billing.paymentFailed', isActive: false }),
+    expect.objectContaining({ id: 'inbox.manyMessages', isActive: true }),
+  ])
+})
+
 test('runs deferred cleanups while a launch handler is still pending', async () => {
   const calls: string[] = []
   let finishFirstLaunch: (() => void) | undefined

@@ -102,10 +102,11 @@ mountStateLauncher({
 })
 ```
 
-When a command is launched, the launcher marks it as active. Reopen
-the panel and choose Clear to abort its launch signal and run its returned
-cleanup functions without unregistering any commands. The same operation is
-available programmatically through `clearActiveState()`.
+After a command's setup resolves, the launcher marks it as active. Reopen the
+panel and choose Clear to abort its launch signal and run its returned cleanup
+functions without unregistering any commands. The active marker remains through
+teardown and disappears when cleanup finishes. The same operation is available
+programmatically through `clearActiveState()`.
 
 Pass the current `auth.isSignedIn` status with `auth.onSignIn` and
 `auth.onSignOut` to add an authentication toggle beside the refresh button in
@@ -210,12 +211,12 @@ export function BillingDebugState() {
 ```
 
 A command may have multiple launch handlers. Launch order is intentionally not
-part of the API contract. When a command is launched, it becomes the active
-state; handlers attached later for the active command fire immediately so
-conditional UI can continue entering that state as it mounts.
+part of the API contract. A command becomes the active state after its launch
+handlers resolve; handlers attached later for the active command fire
+immediately so conditional UI can continue entering that state as it mounts.
 
 Launch handlers may return a cleanup function. Cleanup functions run when a
-different command id is activated, before the new state's launch handlers run.
+different command launch begins, before the new state's launch handlers run.
 That lets a launched state undo temporary setup when the launcher moves to
 another state.
 

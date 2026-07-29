@@ -64,11 +64,11 @@ A command can exist before it has a handler. In the launcher UI, registered comm
 
 A command can have multiple launch handlers. `defineLaunchableState` accepts one initial handler for convenience, and additional handlers can be attached from anywhere, including component lifecycles. Launch order is intentionally not part of the API contract.
 
-When a command is launched, it becomes the active state. If a handler is attached later for the active command, that handler fires immediately. This lets conditional rendering continue a launchable state as newly mounted code becomes available.
+When a command is launched, it becomes the active state after its setup handlers resolve. During a transition, the previous state remains active until teardown finishes; the launcher then shows no active state until the new setup completes. If a handler is attached later for the active command, that handler fires immediately. This lets conditional rendering continue a launchable state as newly mounted code becomes available.
 
-Handlers receive a context with an `AbortSignal`. The signal aborts when a different command id becomes active or the active command is cleared. Use it to cancel stale async setup, such as server-side fake-scenario creation, when another state is launched before setup finishes.
+Handlers receive a context with an `AbortSignal`. The signal aborts when a different command launch begins or the active command is cleared. Use it to cancel stale async setup, such as server-side fake-scenario creation, when another state is launched before setup finishes.
 
-Handlers can call `defer(cleanup)` as each setup resource is acquired. Deferred cleanups run in reverse registration order for that handler when a different command id becomes active or the active state is cleared. If the handler throws, its deferred cleanups run before the launch error propagates. Successful handler cleanups remain owned by the active state. Registering cleanup after the signal has already aborted starts that cleanup immediately, and every registration runs at most once.
+Handlers can call `defer(cleanup)` as each setup resource is acquired. Deferred cleanups run in reverse registration order for that handler when a different command launch begins or the active state is cleared. If the handler throws, its deferred cleanups run before the launch error propagates. Successful handler cleanups remain owned by the active state. Registering cleanup after the signal has already aborted starts that cleanup immediately, and every registration runs at most once.
 
 Handlers may also return one cleanup function. A returned cleanup behaves as that handler's final registration, so it runs before cleanups deferred earlier by the same handler. Relaunching the same command id does not run cleanup; each invocation contributes another cleanup scope to the existing active state. Ordering between different handlers is intentionally unspecified.
 

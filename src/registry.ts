@@ -72,6 +72,7 @@ type LaunchCleanupScope = {
 let registry: CommandRegistry = createRegistry()
 let unregisteredCommands = new WeakSet<StateLauncherCommand>()
 let activeLaunch: ActiveLaunch | undefined
+let committedLaunch: ActiveLaunch | undefined
 
 /**
  * Define a launchable state command.
@@ -185,13 +186,15 @@ export async function launchCommand(commandOrId: StateLauncherCommand | string):
     throw new Error(`State launcher command "${id}" does not have a launch handler.`)
   }
 
-  const activeLaunch = await activateCommand(id)
+  const launchState = await activateCommand(id)
 
   // Snapshot handlers so continuations attached during this launch replay once
   // through active-state handling instead of being visited by Set iteration too.
   for (const launch of launchHandlers) {
-    await runLaunchHandler(launch, activeLaunch)
+    await runLaunchHandler(launch, launchState)
   }
+
+  commitActiveLaunch(launchState)
 }
 
 /** Abort the active state and run its registered cleanup functions. */
@@ -206,7 +209,7 @@ export async function clearActiveState(): Promise<void> {
   try {
     await disposeActiveLaunch(launch)
   } finally {
-    notifyCommandListeners()
+    clearCommittedLaunch(launch)
   }
 }
 
@@ -259,6 +262,7 @@ export function clearCommands(): void {
   }
   const launch = activeLaunch
   activeLaunch = undefined
+  committedLaunch = undefined
   if (launch) {
     void disposeActiveLaunch(launch).catch(reportUnhandledError)
   }
@@ -283,7 +287,7 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
         description: record.description,
         tags: record.tags ?? [],
         hasLaunchHandler: record.launchHandlers.size > 0,
-        isActive: record.id === activeLaunch?.id,
+        isActive: record.id === committedLaunch?.id,
       })
     }
   }
@@ -498,6 +502,9 @@ function clearActiveCommand(id: string): void {
   if (activeLaunch?.id === id) {
     const launch = activeLaunch
     activeLaunch = undefined
+    if (committedLaunch === launch) {
+      committedLaunch = undefined
+    }
     void disposeActiveLaunch(launch).catch(reportUnhandledError)
   }
 }
@@ -516,13 +523,30 @@ async function activateCommand(id: string): Promise<ActiveLaunch> {
     id,
   }
   activeLaunch = launch
-  notifyCommandListeners()
 
   if (previousLaunch) {
-    await disposeActiveLaunch(previousLaunch)
+    try {
+      await disposeActiveLaunch(previousLaunch)
+    } finally {
+      clearCommittedLaunch(previousLaunch)
+    }
   }
 
   return launch
+}
+
+function commitActiveLaunch(launch: ActiveLaunch): void {
+  if (activeLaunch === launch && !launch.disposed && committedLaunch !== launch) {
+    committedLaunch = launch
+    notifyCommandListeners()
+  }
+}
+
+function clearCommittedLaunch(launch: ActiveLaunch): void {
+  if (committedLaunch === launch) {
+    committedLaunch = undefined
+    notifyCommandListeners()
+  }
 }
 
 async function runLaunchHandler(launch: LaunchHandler, activeLaunch: ActiveLaunch): Promise<void> {
