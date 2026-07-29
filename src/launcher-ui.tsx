@@ -244,6 +244,10 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   }
 
   function startSwipe(event: TargetedPointerEvent<HTMLElement>) {
+    if (event.target instanceof HTMLElement && event.target.closest('button, input')) {
+      return
+    }
+
     if (event.isPrimary) {
       event.currentTarget.setPointerCapture(event.pointerId)
     }

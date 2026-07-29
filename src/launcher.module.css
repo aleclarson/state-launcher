@@ -179,9 +179,10 @@
   .pathnameValue {
     border: 1px solid var(--state-launcher-border);
     flex: 1;
+    margin-inline: 3px;
     min-width: 0;
     overflow: hidden;
-    padding: 4px 6px;
+    padding: 4px 9px;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -194,9 +195,10 @@
     color: var(--state-launcher-text);
     flex: 1;
     font: inherit;
+    margin-inline: 3px;
     min-width: 0;
     outline: none;
-    padding: 4px 6px;
+    padding: 4px 9px;
   }
 
   .empty {

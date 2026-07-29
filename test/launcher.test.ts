@@ -300,6 +300,10 @@ test('optionally renders an editable pathname bar with home navigation', async (
   expect(launcherCss).toMatch(
     /\.pathnameValue \{[\s\S]*?border: 1px solid var\(--state-launcher-border\)/,
   )
+  expect(launcherCss).toMatch(/\.pathnameValue \{[\s\S]*?margin-inline: 3px/)
+  expect(launcherCss).toMatch(/\.pathnameValue \{[\s\S]*?padding: 4px 9px/)
+  expect(launcherCss).toMatch(/\.pathnameInput \{[\s\S]*?margin-inline: 3px/)
+  expect(launcherCss).toMatch(/\.pathnameInput \{[\s\S]*?padding: 4px 9px/)
 
   mountStateLauncher({ initiallyOpen: true })
   expect(getLauncherShadowRoot()?.querySelector('[aria-label="Edit current pathname"]')).toBeNull()
@@ -318,6 +322,16 @@ test('optionally renders an editable pathname bar with home navigation', async (
   const pathnameInput = shadowRoot?.querySelector<HTMLInputElement>('input[aria-label="Pathname"]')
   expect(pathnameInput).toBeTruthy()
   expect(pathnameInput?.value).toBe(window.location.pathname)
+  expect(shadowRoot?.activeElement).toBe(pathnameInput)
+
+  const utilityRow = shadowRoot?.querySelector<HTMLElement>('[data-launcher-utility]')
+  const setPointerCapture = vi.spyOn(utilityRow!, 'setPointerCapture')
+  pathnameInput?.dispatchEvent(
+    new PointerEvent('pointerdown', { bubbles: true, isPrimary: true, pointerId: 1 }),
+  )
+
+  expect(setPointerCapture).not.toHaveBeenCalled()
+  expect(shadowRoot?.activeElement).toBe(pathnameInput)
 
   if (pathnameInput) {
     pathnameInput.value = '/settings/profile?tab=security'
