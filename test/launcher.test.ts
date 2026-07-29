@@ -58,7 +58,11 @@ test.each(['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const)(
     expect(shadowRoot?.querySelector('[data-state-launcher]')?.getAttribute('data-position')).toBe(
       position,
     )
-    expect(shadowRoot?.querySelector('[role="dialog"]')?.textContent).toContain('Debug states')
+    expect(shadowRoot?.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+      'Debug states',
+    )
+    expect(shadowRoot?.querySelector('[role="dialog"]')?.textContent).not.toContain('Debug states')
+    expect(shadowRoot?.querySelector('header')).toBeNull()
 
     launcher.unmount()
   },
@@ -130,12 +134,37 @@ test('renders mobile drawer dismissal affordances', () => {
   expect(launcherCss).toContain('touch-action: none')
 })
 
+test('renders one utility row inside the scrollable command list', () => {
+  registerLaunchableState([
+    defineLaunchableState('example.command', {
+      label: 'Example command',
+      launch() {},
+    }),
+  ])
+  mountStateLauncher({
+    auth: { isSignedIn: false, onSignIn: vi.fn(), onSignOut: vi.fn() },
+    initiallyOpen: true,
+    showPathname: true,
+  })
+  const shadowRoot = getLauncherShadowRoot()
+  const utilityRow = shadowRoot?.querySelector<HTMLElement>('[data-launcher-utility]')
+  const scrollContainer = utilityRow?.parentElement
+
+  expect(scrollContainer?.firstElementChild).toBe(utilityRow)
+  expect(scrollContainer?.querySelector('[role="listbox"]')).toBeTruthy()
+  expect(scrollContainer?.querySelector('[aria-label="Go to home page"]')).toBeTruthy()
+  expect(scrollContainer?.querySelector('[aria-label="Edit current pathname"]')).toBeTruthy()
+  expect(scrollContainer?.querySelector('[aria-label="Sign in"]')).toBeTruthy()
+  expect(scrollContainer?.querySelector('[aria-label="Refresh page"]')).toBeTruthy()
+  expect(scrollContainer?.querySelector('[aria-label="Filter commands"]')).toBeNull()
+})
+
 test('keeps the launcher visible and spins while refreshing the page immediately', async () => {
   const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
   const refreshButton = getLauncherShadowRoot()?.querySelector<HTMLButtonElement>(
-    'header [aria-label="Refresh page"]',
+    '[data-launcher-utility] [aria-label="Refresh page"]',
   )
 
   refreshButton?.click()
@@ -166,16 +195,18 @@ test('shows an auth toggle with the configured authentication state', async () =
     auth: { isSignedIn: false, onSignIn, onSignOut },
     initiallyOpen: true,
   })
-  const titleBarButtons = [
-    ...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>('header button'),
+  const utilityButtons = [
+    ...getLauncherShadowRoot()!.querySelectorAll<HTMLButtonElement>(
+      '[data-launcher-utility] button',
+    ),
   ]
 
-  expect(titleBarButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
+  expect(utilityButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
     'Sign in',
     'Refresh page',
   ])
 
-  titleBarButtons[0]?.click()
+  utilityButtons[0]?.click()
   await nextRender()
 
   expect(onSignIn).toHaveBeenCalledOnce()
@@ -206,7 +237,9 @@ test('keeps the launcher visible while authentication is pending', async () => {
     initiallyOpen: true,
   })
   const shadowRoot = getLauncherShadowRoot()
-  const signInButton = shadowRoot?.querySelector<HTMLButtonElement>('header [aria-label="Sign in"]')
+  const signInButton = shadowRoot?.querySelector<HTMLButtonElement>(
+    '[data-launcher-utility] [aria-label="Sign in"]',
+  )
 
   signInButton?.click()
   shadowRoot
@@ -246,7 +279,9 @@ test('temporarily shows auth confirmation in place of the active state', async (
 
   expect(shadowRoot?.textContent).toContain('Active: Active command')
 
-  shadowRoot?.querySelector<HTMLButtonElement>('header [aria-label="Sign out"]')?.click()
+  shadowRoot
+    ?.querySelector<HTMLButtonElement>('[data-launcher-utility] [aria-label="Sign out"]')
+    ?.click()
   await Promise.resolve()
   await Promise.resolve()
 
@@ -364,15 +399,15 @@ test('hides the launcher when the area above the mobile drawer is tapped', async
   expect(shadowRoot?.querySelector('[data-state="closed"]')).toBeTruthy()
 })
 
-test('hides the launcher after a downward swipe from the drawer header', async () => {
+test('hides the launcher after a downward swipe from the utility row', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
-  const header = shadowRoot?.querySelector('header')
+  const utilityRow = shadowRoot?.querySelector('[data-launcher-utility]')
 
-  header?.dispatchEvent(
+  utilityRow?.dispatchEvent(
     new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
   )
-  header?.dispatchEvent(
+  utilityRow?.dispatchEvent(
     new PointerEvent('pointermove', { bubbles: true, clientX: 24, clientY: 100, pointerId: 1 }),
   )
   await nextRender()
@@ -380,15 +415,15 @@ test('hides the launcher after a downward swipe from the drawer header', async (
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
 })
 
-test('keeps the launcher open for a short or mostly horizontal header swipe', async () => {
+test('keeps the launcher open for a short or mostly horizontal utility-row swipe', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
-  const header = shadowRoot?.querySelector('header')
+  const utilityRow = shadowRoot?.querySelector('[data-launcher-utility]')
 
-  header?.dispatchEvent(
+  utilityRow?.dispatchEvent(
     new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
   )
-  header?.dispatchEvent(
+  utilityRow?.dispatchEvent(
     new PointerEvent('pointermove', { bubbles: true, clientX: 90, clientY: 75, pointerId: 1 }),
   )
   await nextRender()
@@ -400,7 +435,6 @@ test('uses mobile and tablet font sizes that keep the filter input readable with
   expect(launcherCss).toMatch(
     /@media \(max-width: 1024px\)[\s\S]*?\.stateLauncher\.bottom-right[\s\S]*?font-size: 16px/,
   )
-  expect(launcherCss).toMatch(/\.header h2 \{\s*font-size: 16px/)
   expect(launcherCss).toMatch(/\.groupTitle \{\s*font-size: 14px/)
   expect(launcherCss).toMatch(/\.commandDescription \{\s*font-size: 14px/)
   expect(launcherCss).toMatch(/\.commandId \{\s*font-size: 13px/)

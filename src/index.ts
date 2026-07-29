@@ -10,7 +10,7 @@ export { mountStateLauncher } from './launcher'
 
 /** Options for mounting the isolated in-page launcher UI. */
 export type MountStateLauncherOptions = {
-  /** Optional authentication actions shown in the launcher title bar. */
+  /** Optional authentication actions shown in the launcher's utility row. */
   auth?: StateLauncherAuthOptions
   /** Element that receives the launcher host. Defaults to `document.body`. */
   target?: HTMLElement

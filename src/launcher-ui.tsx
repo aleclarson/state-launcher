@@ -394,98 +394,6 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
           onFocusOut={hideWhenFocusLeaves}
           role={isLauncherOpen ? 'dialog' : undefined}
         >
-          <header
-            class={styles.header}
-            onPointerCancel={stopSwipe}
-            onPointerDown={startSwipe}
-            onPointerMove={updateSwipe}
-            onPointerUp={stopSwipe}
-          >
-            <span aria-hidden="true" class={styles.dragHandle} />
-            <div class={styles.titleBar}>
-              <h2>{title}</h2>
-              <div class={styles.titleBarActions}>
-                {auth ? (
-                  <button
-                    aria-label={isSignedIn ? 'Sign out' : 'Sign in'}
-                    class={styles.titleBarButton}
-                    disabled={isAuthPending}
-                    onClick={() => {
-                      void toggleAuthentication()
-                    }}
-                    onPointerDown={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                    }}
-                    type="button"
-                  >
-                    {isSignedIn ? <SignOutIcon /> : <SignInIcon />}
-                  </button>
-                ) : null}
-                <button
-                  aria-label="Refresh page"
-                  class={styles.titleBarButton}
-                  disabled={isRefreshPending}
-                  onClick={refreshPage}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                  }}
-                  type="button"
-                >
-                  <RefreshIcon isSpinning={isRefreshPending} />
-                </button>
-              </div>
-            </div>
-          </header>
-          {showPathname ? (
-            <form
-              class={styles.pathnameBar}
-              onSubmit={(event) => {
-                event.preventDefault()
-                navigateToPathname(pathnameInputRef.current?.value ?? window.location.pathname)
-              }}
-            >
-              <button
-                aria-label="Go to home page"
-                class={styles.pathnameHome}
-                onClick={() => {
-                  navigateToPathname(auth?.homePath?.({ isSignedIn }) ?? '/')
-                }}
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                }}
-                type="button"
-              >
-                <HomeIcon />
-              </button>
-              {isEditingPathname ? (
-                <input
-                  aria-label="Pathname"
-                  class={styles.pathnameInput}
-                  defaultValue={window.location.pathname}
-                  onBlur={() => {
-                    setIsEditingPathname(false)
-                  }}
-                  ref={pathnameInputRef}
-                />
-              ) : (
-                <button
-                  aria-label="Edit current pathname"
-                  class={styles.pathnameValue}
-                  onClick={() => {
-                    setIsEditingPathname(true)
-                  }}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                  }}
-                  type="button"
-                >
-                  {window.location.pathname}
-                </button>
-              )}
-            </form>
-          ) : null}
           <input
             aria-label="Filter commands"
             class={styles.searchInput}
@@ -525,101 +433,194 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
               </button>
             </div>
           ) : null}
-          {launchError ? (
-            <div class={styles.error} role="alert">
-              {launchError}
+          <div class={styles.groups}>
+            <div
+              class={styles.utilityBar}
+              data-launcher-utility=""
+              onPointerCancel={stopSwipe}
+              onPointerDown={startSwipe}
+              onPointerMove={updateSwipe}
+              onPointerUp={stopSwipe}
+            >
+              <span aria-hidden="true" class={styles.dragHandle} />
+              {showPathname ? (
+                <form
+                  class={styles.pathnameBar}
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    navigateToPathname(pathnameInputRef.current?.value ?? window.location.pathname)
+                  }}
+                >
+                  <button
+                    aria-label="Go to home page"
+                    class={styles.pathnameHome}
+                    onClick={() => {
+                      navigateToPathname(auth?.homePath?.({ isSignedIn }) ?? '/')
+                    }}
+                    onPointerDown={(event) => {
+                      event.preventDefault()
+                    }}
+                    type="button"
+                  >
+                    <HomeIcon />
+                  </button>
+                  {isEditingPathname ? (
+                    <input
+                      aria-label="Pathname"
+                      class={styles.pathnameInput}
+                      defaultValue={window.location.pathname}
+                      onBlur={() => {
+                        setIsEditingPathname(false)
+                      }}
+                      ref={pathnameInputRef}
+                    />
+                  ) : (
+                    <button
+                      aria-label="Edit current pathname"
+                      class={styles.pathnameValue}
+                      onClick={() => {
+                        setIsEditingPathname(true)
+                      }}
+                      onPointerDown={(event) => {
+                        event.preventDefault()
+                      }}
+                      type="button"
+                    >
+                      {window.location.pathname}
+                    </button>
+                  )}
+                </form>
+              ) : null}
+              <div class={styles.utilityActions}>
+                {auth ? (
+                  <button
+                    aria-label={isSignedIn ? 'Sign out' : 'Sign in'}
+                    class={styles.utilityButton}
+                    disabled={isAuthPending}
+                    onClick={() => {
+                      void toggleAuthentication()
+                    }}
+                    onPointerDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                    }}
+                    type="button"
+                  >
+                    {isSignedIn ? <SignOutIcon /> : <SignInIcon />}
+                  </button>
+                ) : null}
+                <button
+                  aria-label="Refresh page"
+                  class={styles.utilityButton}
+                  disabled={isRefreshPending}
+                  onClick={refreshPage}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                  }}
+                  type="button"
+                >
+                  <RefreshIcon isSpinning={isRefreshPending} />
+                </button>
+              </div>
             </div>
-          ) : null}
-          {currentVisibleCommands.length === 0 ? (
-            <div class={styles.empty}>
-              {commands.length === 0 ? 'No commands registered.' : 'No commands match.'}
-            </div>
-          ) : (
-            <div class={styles.groups} role="listbox">
-              {groupedCommands.map((group) => (
-                <section class={styles.group} key={group.name}>
-                  <h3 class={styles.groupTitle}>{group.name}</h3>
-                  <div class={styles.items}>
-                    {group.commands.map(({ command, index }) => {
-                      const matches = currentCommandMatches.get(command.id) ?? []
-                      const labelMatch = findFieldMatch(matches, command.label ? 'label' : 'id')
-                      const descriptionMatch = findFieldMatch(matches, 'description')
-                      const idMatch = findFieldMatch(matches, 'id')
-                      const matchedTags = getMatchedTags(
-                        command.tags,
-                        findFieldMatch(matches, 'tags'),
-                      )
-                      const isActive = command.isActive
-                      const isPending = pendingCommandId === command.id
-                      let className = styles.command
+            {launchError ? (
+              <div class={styles.error} role="alert">
+                {launchError}
+              </div>
+            ) : null}
+            {currentVisibleCommands.length === 0 ? (
+              <div class={styles.empty}>
+                {commands.length === 0 ? 'No commands registered.' : 'No commands match.'}
+              </div>
+            ) : (
+              <div role="listbox">
+                {groupedCommands.map((group) => (
+                  <section class={styles.group} key={group.name}>
+                    <h3 class={styles.groupTitle}>{group.name}</h3>
+                    <div class={styles.items}>
+                      {group.commands.map(({ command, index }) => {
+                        const matches = currentCommandMatches.get(command.id) ?? []
+                        const labelMatch = findFieldMatch(matches, command.label ? 'label' : 'id')
+                        const descriptionMatch = findFieldMatch(matches, 'description')
+                        const idMatch = findFieldMatch(matches, 'id')
+                        const matchedTags = getMatchedTags(
+                          command.tags,
+                          findFieldMatch(matches, 'tags'),
+                        )
+                        const isActive = command.isActive
+                        const isPending = pendingCommandId === command.id
+                        let className = styles.command
 
-                      if (!command.hasLaunchHandler) {
-                        className += ` ${styles.disabled}`
-                      }
-                      if (isPending) {
-                        className += ` ${styles.pending}`
-                      }
-                      if (isActive) {
-                        className += ` ${styles.active}`
-                      }
+                        if (!command.hasLaunchHandler) {
+                          className += ` ${styles.disabled}`
+                        }
+                        if (isPending) {
+                          className += ` ${styles.pending}`
+                        }
+                        if (isActive) {
+                          className += ` ${styles.active}`
+                        }
 
-                      return (
-                        <button
-                          aria-current={isActive || undefined}
-                          aria-disabled={isCommandInteractionPending || !command.hasLaunchHandler}
-                          aria-busy={isPending || undefined}
-                          class={className}
-                          disabled={
-                            (isCommandInteractionPending && !isPending) || !command.hasLaunchHandler
-                          }
-                          key={command.id}
-                          onClick={() => {
-                            void activateCommand(command)
-                          }}
-                          ref={searchNavigation.itemRef(index)}
-                          role="option"
-                          type="button"
-                        >
-                          <span class={styles.commandHeading}>
-                            <span class={styles.commandLabel} data-command-label="">
-                              {renderMatchedText(command.label ?? command.id, labelMatch)}
+                        return (
+                          <button
+                            aria-current={isActive || undefined}
+                            aria-disabled={isCommandInteractionPending || !command.hasLaunchHandler}
+                            aria-busy={isPending || undefined}
+                            class={className}
+                            disabled={
+                              (isCommandInteractionPending && !isPending) ||
+                              !command.hasLaunchHandler
+                            }
+                            key={command.id}
+                            onClick={() => {
+                              void activateCommand(command)
+                            }}
+                            ref={searchNavigation.itemRef(index)}
+                            role="option"
+                            type="button"
+                          >
+                            <span class={styles.commandHeading}>
+                              <span class={styles.commandLabel} data-command-label="">
+                                {renderMatchedText(command.label ?? command.id, labelMatch)}
+                              </span>
+                              <span class={styles.commandIndicators}>
+                                {isActive ? <span class={styles.activeBadge}>Active</span> : null}
+                                {isPending ? (
+                                  <span aria-hidden="true" class={styles.spinner} />
+                                ) : null}
+                              </span>
                             </span>
-                            <span class={styles.commandIndicators}>
-                              {isActive ? <span class={styles.activeBadge}>Active</span> : null}
-                              {isPending ? (
-                                <span aria-hidden="true" class={styles.spinner} />
-                              ) : null}
+                            {command.description ? (
+                              <span class={styles.commandDescription} data-command-description="">
+                                {renderMatchedText(command.description, descriptionMatch)}
+                              </span>
+                            ) : null}
+                            {matchedTags.length > 0 ? (
+                              <span class={styles.commandTags}>
+                                {matchedTags.map((tag, tagIndex) => (
+                                  <span
+                                    class={styles.commandTag}
+                                    data-command-tag=""
+                                    key={`${tag.target}:${tagIndex}`}
+                                  >
+                                    {renderMatchedText(tag.target, tag)}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : null}
+                            <span class={styles.commandId} data-command-id="">
+                              {renderMatchedText(command.id, idMatch)}
                             </span>
-                          </span>
-                          {command.description ? (
-                            <span class={styles.commandDescription} data-command-description="">
-                              {renderMatchedText(command.description, descriptionMatch)}
-                            </span>
-                          ) : null}
-                          {matchedTags.length > 0 ? (
-                            <span class={styles.commandTags}>
-                              {matchedTags.map((tag, tagIndex) => (
-                                <span
-                                  class={styles.commandTag}
-                                  data-command-tag=""
-                                  key={`${tag.target}:${tagIndex}`}
-                                >
-                                  {renderMatchedText(tag.target, tag)}
-                                </span>
-                              ))}
-                            </span>
-                          ) : null}
-                          <span class={styles.commandId} data-command-id="">
-                            {renderMatchedText(command.id, idMatch)}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </>
     </div>
@@ -631,7 +632,7 @@ function RefreshIcon({ isSpinning = false }: { isSpinning?: boolean }) {
     // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
     <svg
       aria-hidden="true"
-      class={`${styles.titleBarIcon} ${isSpinning ? styles.spinning : ''}`}
+      class={`${styles.utilityIcon} ${isSpinning ? styles.spinning : ''}`}
       fill="none"
       focusable="false"
       viewBox="0 0 24 24"
@@ -668,7 +669,7 @@ function SignOutIcon() {
     // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
     <svg
       aria-hidden="true"
-      class={styles.titleBarIcon}
+      class={styles.utilityIcon}
       fill="none"
       focusable="false"
       viewBox="0 0 24 24"
@@ -687,7 +688,7 @@ function SignInIcon() {
     // Icon from MingCute Icon by MingCute Design: https://github.com/Richard9394/MingCute/blob/main/LICENSE
     <svg
       aria-hidden="true"
-      class={styles.titleBarIcon}
+      class={styles.utilityIcon}
       fill="none"
       fill-rule="evenodd"
       focusable="false"

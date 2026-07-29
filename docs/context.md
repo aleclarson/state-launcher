@@ -133,10 +133,10 @@ calls updated handlers without reattaching the registry handler.
 - fixed `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions on desktop widths above `1024px`
 - a fullscreen bottom drawer at `1024px` and below; `position` still selects the corner used when the viewport grows beyond the breakpoint
 - a safe-area-aware strip above the mobile/tablet drawer that closes it when tapped
-- swipe-down dismissal from the pill above the drawer title, with slide-in and slide-out transitions
-- custom panel title
+- swipe-down dismissal from the pill above the drawer utility row, with slide-in and slide-out transitions
+- a custom accessible dialog label without a visible panel title
 - initially open or closed state
-- an optional compact pathname bar with editable navigation and a home destination that can depend on the current authentication state
+- a non-sticky utility row at the top of the command list containing refresh and optional home, editable-pathname, and authentication controls
 - an optional sign-out/sign-in toggle initialized by `auth.isSignedIn` and backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter

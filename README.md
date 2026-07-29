@@ -78,17 +78,17 @@ await paymentFailed.launch()
 `position` selects one of four fixed desktop corners. At viewport widths of
 `1024px` and below, the package uses a fullscreen bottom drawer regardless of the
 selected corner. The drawer leaves a safe-area-aware strip above its rounded top
-corners; tap that strip or swipe down from the pill above the title to close it.
+corners; tap that strip or swipe down from the pill above the utility row to
+close it.
 No consumer Shadow DOM overrides are needed.
 
 `mountStateLauncher()` does not render its own persistent trigger. Use the
 returned controller to wire the launcher to an app-owned button, menu item,
 keyboard shortcut, or test helper.
 
-Set `showPathname: true` to add a compact navigation bar. It displays the current
-pathname, provides a home button for `/`, and lets you select the pathname to
-edit it and navigate to another page. Use `homePath` when the home destination
-depends on the launcher's current authentication state:
+Set `showPathname: true` to add home and editable-pathname controls to the
+scrollable utility row at the top of the command list. Use `homePath` when the
+home destination depends on the launcher's current authentication state:
 
 ```ts
 mountStateLauncher({
@@ -108,8 +108,8 @@ cleanup functions without unregistering any commands. The same operation is
 available programmatically through `clearActiveState()`.
 
 Pass the current `auth.isSignedIn` status with `auth.onSignIn` and
-`auth.onSignOut` to add an authentication toggle beside the title-bar refresh
-button:
+`auth.onSignOut` to add an authentication toggle beside the refresh button in
+the utility row:
 
 ```ts
 mountStateLauncher({
