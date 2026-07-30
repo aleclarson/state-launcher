@@ -903,6 +903,47 @@ test('boosts states launched in the past 24 hours in search results', async () =
   expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
 })
 
+test('renders search results as one flat globally ranked list', async () => {
+  const now = Date.now()
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'billing.primary': [now - 1000, now - 2000, now - 3000],
+      'inbox.middle': [now - 1000, now - 2000],
+      'billing.low': [now - 1000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('billing.low', {
+      label: 'Billing low match',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.primary', {
+      label: 'Billing primary match',
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('inbox.middle', {
+      label: 'Inbox middle match',
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'match'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual([
+    'Billing primary match',
+    'Inbox middle match',
+    'Billing low match',
+  ])
+  expect(shadowRoot?.querySelector('[role="listbox"] h3')).toBeNull()
+})
+
 test('ignores launch counts older than 24 hours', async () => {
   const now = Date.now()
   window.localStorage.setItem(

@@ -4,7 +4,7 @@
 
 The package intentionally separates discovery from behavior:
 
-- The launcher panel discovers registered commands, groups them by id prefix, filters them, and reports launch errors.
+- The launcher panel discovers registered commands, groups them by id prefix while browsing, filters them into a flat ranked result list, and reports launch errors.
 - The host application decides what each command actually does.
 - Tests and setup scripts can launch the same commands without mounting the panel.
 
@@ -13,7 +13,7 @@ The package intentionally separates discovery from behavior:
 Use stable, dotted ids such as `billing.paymentFailed` or `inbox.manyMessages`.
 
 - The full id is the command identity.
-- The first dotted segment is used as the panel group name.
+- The first dotted segment is used as the panel group name when the search is empty.
 - Defining a command creates a side-effect-free handle that can carry metadata and an optional launch handler.
 - Registering commands makes them discoverable by the launcher. Duplicate ids are merged into one registry record.
 - Empty ids are invalid.
@@ -56,7 +56,7 @@ Use:
 
 Mounted launchers subscribe to registry changes. Clearing commands while a launcher is mounted updates the panel to show the empty registry.
 
-Successful launches are retained in browser local storage for 24 hours. With an empty search, the launcher surfaces up to three registered commands with the latest launches in a leading Recent group. Stale history for unregistered commands is not displayed. During search, launch frequency remains a ranking hint instead of a separate group.
+Successful launches are retained in browser local storage for 24 hours. With an empty search, the launcher surfaces up to three registered commands with the latest launches in a leading Recent group. Stale history for unregistered commands is not displayed. During search, namespace and Recent groups are removed so launchability and launch-frequency boosts apply to one globally ranked result list.
 
 ## Launch handlers
 
@@ -146,7 +146,7 @@ calls updated handlers without reattaching the registry handler.
 - initially open or closed state
 - a non-sticky utility row at the top of the command list containing refresh and optional home, editable-pathname, and authentication controls
 - optional idempotent sign-out/sign-in actions initialized by `auth.isSignedIn`, backed by paired `auth.onSignOut` and `auth.onSignIn` handlers, and shared by the toggle and launch handlers
-- fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
+- fuzzy filtering across id, label, description, and tags, with flat globally ranked search results, launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches
 

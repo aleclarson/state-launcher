@@ -43,6 +43,10 @@ type CommandSearchView = {
   commands: CommandRecordSnapshot[]
   matches: ReadonlyMap<string, readonly FieldMatch[]>
 }
+type CommandGroup = {
+  commands: { command: CommandRecordSnapshot; index: number }[]
+  name?: string
+}
 
 export function LauncherShell({ auth, isOpen, position, showPathname, title }: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
@@ -75,10 +79,15 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const visibleCommands = useSignal(commands)
   const commandMatches = useSignal<ReadonlyMap<string, readonly FieldMatch[]>>(new Map())
   const recentCommandIds = useSignal<string[]>([])
+  const isSearchActive = useSignal(false)
   const currentVisibleCommands = visibleCommands.value
   const currentCommandMatches = commandMatches.value
   const currentRecentCommandIds = recentCommandIds.value
-  const groupedCommands = groupCommands(currentVisibleCommands, currentRecentCommandIds)
+  const groupedCommands = groupCommands(
+    currentVisibleCommands,
+    currentRecentCommandIds,
+    isSearchActive.value,
+  )
   const activeCommand = commands.find((command) => command.isActive)
   const isCommandInteractionPending = Boolean(pendingCommandId) || isClearPending
 
@@ -87,10 +96,12 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   }
 
   function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
+    const trimmedQuery = query.trim()
     const searchView = filterAndRankCommands(nextCommands, query)
     visibleCommands.value = searchView.commands
     commandMatches.value = searchView.matches
-    recentCommandIds.value = query.trim() ? [] : readRecentCommandIds(Date.now(), nextCommands)
+    recentCommandIds.value = trimmedQuery ? [] : readRecentCommandIds(Date.now(), nextCommands)
+    isSearchActive.value = Boolean(trimmedQuery)
   }
 
   async function toggleAuthentication() {
@@ -548,8 +559,8 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
             ) : (
               <div role="listbox">
                 {groupedCommands.map((group) => (
-                  <section class={styles.group} key={group.name}>
-                    <h3 class={styles.groupTitle}>{group.name}</h3>
+                  <section class={styles.group} key={group.name ?? 'search-results'}>
+                    {group.name ? <h3 class={styles.groupTitle}>{group.name}</h3> : null}
                     <div class={styles.items}>
                       {group.commands.map(({ command, index }) => {
                         const matches = currentCommandMatches.get(command.id) ?? []
@@ -959,7 +970,19 @@ function createLaunchCounts(history: LaunchHistory): LaunchCounts {
   return new Map(Object.entries(history).map(([id, timestamps]) => [id, timestamps.length]))
 }
 
-function groupCommands(commands: CommandRecordSnapshot[], recentCommandIds: readonly string[]) {
+function groupCommands(
+  commands: CommandRecordSnapshot[],
+  recentCommandIds: readonly string[],
+  isSearchActive: boolean,
+): CommandGroup[] {
+  if (isSearchActive) {
+    return [
+      {
+        commands: commands.map((command, index) => ({ command, index })),
+      },
+    ]
+  }
+
   const groups = new Map<string, { command: CommandRecordSnapshot; index: number }[]>()
   const recentCommands = new Set(recentCommandIds)
 
