@@ -395,6 +395,18 @@ test('temporarily shows auth confirmation in place of the active state', async (
   vi.useRealTimers()
 })
 
+test('uses a green confirmation palette without changing the active-state palette', () => {
+  expect(launcherCss).toMatch(
+    /\.activeState \{[\s\S]*?background: var\(--state-launcher-active-bg\);/,
+  )
+  expect(launcherCss).toMatch(
+    /\.authConfirmation \{[\s\S]*?background: var\(--state-launcher-success-bg\);[\s\S]*?border-bottom-color: var\(--state-launcher-success-border\);[\s\S]*?color: var\(--state-launcher-success-fg\);/,
+  )
+  expect(launcherCss).toMatch(
+    /\.authConfirmation \{[\s\S]*?\.activeStateDot \{[\s\S]*?background: var\(--state-launcher-success-fg\);/,
+  )
+})
+
 test('optionally renders an editable pathname bar with home navigation', async () => {
   const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
 

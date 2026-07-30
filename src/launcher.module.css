@@ -11,6 +11,9 @@
   --state-launcher-panel-bg: #fff;
   --state-launcher-shadow: rgb(15 23 42 / 20%);
   --state-launcher-subtle-fg: #7a8799;
+  --state-launcher-success-bg: #edf9f1;
+  --state-launcher-success-border: #b8dfc5;
+  --state-launcher-success-fg: #216e3a;
   --state-launcher-text: #162033;
 
   box-sizing: border-box;
@@ -267,8 +270,14 @@
   }
 
   .authConfirmation {
-    color: var(--state-launcher-text);
+    background: var(--state-launcher-success-bg);
+    border-bottom-color: var(--state-launcher-success-border);
+    color: var(--state-launcher-success-fg);
     min-height: 38px;
+
+    .activeStateDot {
+      background: var(--state-launcher-success-fg);
+    }
   }
 
   .clearActiveState {
@@ -643,6 +652,9 @@
     --state-launcher-panel-bg: #111827;
     --state-launcher-shadow: rgb(0 0 0 / 42%);
     --state-launcher-subtle-fg: #8b98aa;
+    --state-launcher-success-bg: #163724;
+    --state-launcher-success-border: #2f6844;
+    --state-launcher-success-fg: #9ce3b2;
     --state-launcher-text: #f3f6fb;
 
     color-scheme: dark;
