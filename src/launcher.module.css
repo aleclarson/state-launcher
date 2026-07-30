@@ -530,6 +530,33 @@
       touch-action: none;
     }
 
+    .utilityButton {
+      height: 44px;
+      padding: 10px;
+      width: 44px;
+
+      .utilityIcon {
+        height: 24px;
+        width: 24px;
+      }
+    }
+
+    .pathnameHome {
+      height: 44px;
+      padding: 11px;
+      width: 44px;
+    }
+
+    .pathnameHomeIcon {
+      height: 22px;
+      width: 22px;
+    }
+
+    .pathnameInput,
+    .pathnameValue {
+      height: 44px;
+    }
+
     .dragHandle {
       background: var(--state-launcher-subtle-fg);
       border-radius: 999px;

@@ -144,6 +144,20 @@ test('renders mobile drawer dismissal affordances', () => {
   expect(launcherCss).toContain('touch-action: none')
 })
 
+test('uses mobile-sized utility controls and icons', () => {
+  const mobileCss = launcherCss.slice(launcherCss.indexOf('@media (max-width: 1024px)'))
+
+  expect(mobileCss).toMatch(
+    /\.utilityButton \{[\s\S]*?height: 44px;[\s\S]*?padding: 10px;[\s\S]*?width: 44px;/,
+  )
+  expect(mobileCss).toMatch(/\.utilityIcon \{[\s\S]*?height: 24px;[\s\S]*?width: 24px;/)
+  expect(mobileCss).toMatch(
+    /\.pathnameHome \{[\s\S]*?height: 44px;[\s\S]*?padding: 11px;[\s\S]*?width: 44px;/,
+  )
+  expect(mobileCss).toMatch(/\.pathnameHomeIcon \{[\s\S]*?height: 22px;[\s\S]*?width: 22px;/)
+  expect(mobileCss).toMatch(/\.pathnameInput,[\s\S]*?\.pathnameValue \{[\s\S]*?height: 44px;/)
+})
+
 test('renders one utility row inside the scrollable command list', () => {
   registerLaunchableState([
     defineLaunchableState('example.command', {
