@@ -151,6 +151,7 @@ test('renders mobile drawer dismissal affordances', () => {
 test('uses mobile-sized utility controls and icons', () => {
   const mobileCss = launcherCss.slice(launcherCss.indexOf('@media (max-width: 1024px)'))
 
+  expect(mobileCss).toMatch(/\.utilityBar \{\s*padding-left: 2px;/)
   expect(mobileCss).toMatch(
     /\.utilityButton \{[\s\S]*?height: 44px;[\s\S]*?padding: 10px;[\s\S]*?width: 44px;/,
   )
