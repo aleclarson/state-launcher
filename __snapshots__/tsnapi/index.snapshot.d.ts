@@ -12,6 +12,8 @@ export type LaunchCleanup = () => void | Promise<void>;
 export type LaunchContext = {
   readonly signal: AbortSignal;
   defer(_: LaunchCleanup): void;
+  signIn(): Promise<void>;
+  signOut(): Promise<void>;
 };
 export type LaunchHandler = (_: LaunchContext) => void | LaunchCleanup | Promise<void | LaunchCleanup>;
 export type MountedStateLauncher = {

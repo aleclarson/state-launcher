@@ -10,7 +10,7 @@ export { mountStateLauncher } from './launcher'
 
 /** Options for mounting the isolated in-page launcher UI. */
 export type MountStateLauncherOptions = {
-  /** Optional authentication actions shown in the launcher's utility row. */
+  /** Optional authentication actions exposed to the UI and launch handlers. */
   auth?: StateLauncherAuthOptions
   /** Element that receives the launcher host. Defaults to `document.body`. */
   target?: HTMLElement
@@ -40,9 +40,9 @@ export type StateLauncherAuthOptions = {
   homePath?: (context: { isSignedIn: boolean }) => string
   /** Whether the current user is signed in when the launcher is mounted. */
   isSignedIn: boolean
-  /** Sign the current user in. */
+  /** Sign the current user in when an auth action requires it. */
   onSignIn: () => void | Promise<void>
-  /** Sign the current user out. */
+  /** Sign the current user out when an auth action requires it. */
   onSignOut: () => void | Promise<void>
 }
 
@@ -84,6 +84,16 @@ export type LaunchContext = {
    * reverse registration order. Cleanup registered after abort starts immediately.
    */
   defer(cleanup: LaunchCleanup): void
+  /**
+   * Sign in through the mounted launcher's auth callbacks when currently signed
+   * out. Rejects when launcher authentication is not configured.
+   */
+  signIn(): Promise<void>
+  /**
+   * Sign out through the mounted launcher's auth callbacks when currently signed
+   * in. Rejects when launcher authentication is not configured.
+   */
+  signOut(): Promise<void>
 }
 
 /** Handler that puts the host application into a launchable state. */

@@ -42,7 +42,7 @@ import.meta.hot?.dispose(unregisterStates)
 
 ## Lifecycle and cleanup
 
-The registry is process-local. Command handles are plain values; the launcher only discovers commands after they are registered. Registered commands remain in the launcher registry until they are unregistered or the registry is cleared.
+The registry is process-local. Command handles are plain values; the launcher only discovers commands after they are registered. Registered commands remain in the launcher registry until they are unregistered or the registry is cleared. At most one launcher UI may be mounted at a time; a second mount throws until the current launcher is unmounted.
 
 Use:
 
@@ -67,6 +67,13 @@ A command can have multiple launch handlers. `defineLaunchableState` accepts one
 When a command is launched, it becomes the active state after its setup handlers resolve. During a transition, the previous state remains active until teardown finishes; the launcher then shows no active state until the new setup completes. If a handler is attached later for the active command, that handler fires immediately. This lets conditional rendering continue a launchable state as newly mounted code becomes available.
 
 Handlers receive a context with an `AbortSignal`. The signal aborts when a different command launch begins or the active command is cleared. Use it to cancel stale async setup, such as server-side fake-scenario creation, when another state is launched before setup finishes.
+
+When the mounted launcher has `auth` configured, the context also provides
+`signIn()` and `signOut()`. These actions call the corresponding host callback
+only when the launcher is currently in the opposite authentication state.
+Concurrent and repeated requests are serialized, and successful changes update
+the launcher toggle and auth-aware home path. Both methods reject when launcher
+authentication is not configured.
 
 Handlers can call `defer(cleanup)` as each setup resource is acquired. Deferred cleanups run in reverse registration order for that handler when a different command launch begins or the active state is cleared. If the handler throws, its deferred cleanups run before the launch error propagates. Successful handler cleanups remain owned by the active state. Registering cleanup after the signal has already aborted starts that cleanup immediately, and every registration runs at most once.
 
@@ -130,6 +137,7 @@ calls updated handlers without reattaching the registry handler.
 
 `mountStateLauncher` mounts a Shadow DOM-isolated floating launcher panel. It supports:
 
+- one mounted launcher at a time, with explicit unmounting before replacement
 - fixed `bottom-right`, `bottom-left`, `top-right`, and `top-left` positions on desktop widths above `1024px`
 - a fullscreen bottom drawer at `1024px` and below; `position` still selects the corner used when the viewport grows beyond the breakpoint
 - a safe-area-aware strip above the mobile/tablet drawer that closes it when tapped
@@ -137,7 +145,7 @@ calls updated handlers without reattaching the registry handler.
 - a custom accessible dialog label without a visible panel title
 - initially open or closed state
 - a non-sticky utility row at the top of the command list containing refresh and optional home, editable-pathname, and authentication controls
-- an optional sign-out/sign-in toggle initialized by `auth.isSignedIn` and backed by paired `auth.onSignOut` and `auth.onSignIn` handlers
+- optional idempotent sign-out/sign-in actions initialized by `auth.isSignedIn`, backed by paired `auth.onSignOut` and `auth.onSignIn` handlers, and shared by the toggle and launch handlers
 - fuzzy filtering across id, label, description, and tags, with launchable commands ranked first, contributing text highlighted, and matching tags revealed
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches

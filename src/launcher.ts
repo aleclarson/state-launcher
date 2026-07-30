@@ -5,23 +5,30 @@ import { createIsolet } from 'isolet-js/runtime'
 import { preact } from 'isolet-js/preact'
 import launcherCss from './launcher.module.css?inline'
 import type { MountedStateLauncher, MountStateLauncherOptions } from './index'
-import { LauncherShell, type LauncherProps } from './launcher-ui'
+import { registerLauncherAuthActions } from './launcher-auth'
+import { LauncherShell, type LauncherAuth, type LauncherProps } from './launcher-ui'
 
 const defaultTitle = 'Commands'
 const defaultPosition = 'bottom-right'
+let mountedLauncher: object | undefined
 
 /**
  * Mount the Shadow DOM-isolated launcher panel UI.
  *
  * The mounted UI subscribes to registry changes and can launch any registered
  * command with a handler. Unmounting removes only the UI, not the command
- * registry.
+ * registry. Only one launcher may be mounted at a time.
  */
 export function mountStateLauncher(options: MountStateLauncherOptions = {}): MountedStateLauncher {
   validateAuthOptions(options.auth)
 
+  if (mountedLauncher) {
+    throw new Error('A state launcher is already mounted. Unmount it before mounting another.')
+  }
+
   const target = options.target ?? document.body
   const position = options.position ?? defaultPosition
+  const auth = createLauncherAuth(options.auth)
   const launcherIsolet = createIsolet<LauncherProps>({
     name: 'state-launcher',
     css: launcherCss,
@@ -33,8 +40,9 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
     zIndex: 2147483647,
   })
   const isOpen = signal(Boolean(options.initiallyOpen))
+  let mounted = true
   const props = {
-    auth: options.auth,
+    auth,
     isOpen,
     setOpen(nextOpen: boolean) {
       if (!mounted) {
@@ -50,9 +58,20 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
     showPathname: options.showPathname ?? false,
     title: options.title ?? defaultTitle,
   }
-  let mounted = true
+  const mountToken = {}
+  let unregisterLauncherAuth: (() => void) | undefined
+  mountedLauncher = mountToken
 
-  launcherIsolet.mount(target, props)
+  try {
+    if (auth) {
+      unregisterLauncherAuth = registerLauncherAuthActions(auth)
+    }
+    launcherIsolet.mount(target, props)
+  } catch (error) {
+    unregisterLauncherAuth?.()
+    mountedLauncher = undefined
+    throw error
+  }
 
   return {
     open() {
@@ -70,8 +89,47 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       }
 
       mounted = false
-      launcherIsolet.unmount()
+      unregisterLauncherAuth?.()
+
+      try {
+        launcherIsolet.unmount()
+      } finally {
+        if (mountedLauncher === mountToken) {
+          mountedLauncher = undefined
+        }
+      }
     },
+  }
+}
+
+function createLauncherAuth(auth: MountStateLauncherOptions['auth']): LauncherAuth | undefined {
+  if (!auth) {
+    return undefined
+  }
+
+  const configuredAuth = auth
+  const isSignedIn = signal(configuredAuth.isSignedIn)
+  let actionQueue = Promise.resolve()
+
+  function setSignedIn(nextIsSignedIn: boolean): Promise<void> {
+    const action = actionQueue.then(async () => {
+      if (isSignedIn.value === nextIsSignedIn) {
+        return
+      }
+
+      await (nextIsSignedIn ? configuredAuth.onSignIn() : configuredAuth.onSignOut())
+      isSignedIn.value = nextIsSignedIn
+    })
+
+    actionQueue = action.catch(() => {})
+    return action
+  }
+
+  return {
+    homePath: configuredAuth.homePath,
+    isSignedIn,
+    signIn: () => setSignedIn(true),
+    signOut: () => setSignedIn(false),
   }
 }
 

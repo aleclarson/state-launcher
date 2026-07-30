@@ -30,6 +30,9 @@ Preact consumers do not need to install React.
 
 The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, disabled display for commands without handlers, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
 
+Only one launcher may be mounted at a time. Unmount the current launcher before
+mounting another one.
+
 ## Install
 
 ```sh
@@ -49,8 +52,8 @@ export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
   description: 'Customer has a failed payment method.',
   tags: ['billing', 'card'],
-  async launch() {
-    await signInAsTestUser()
+  async launch({ signIn }) {
+    await signIn()
     await createFailedPaymentMethod()
     await navigateToBilling()
   },
@@ -61,6 +64,11 @@ const unregisterStates = registerLaunchableState([paymentFailed])
 import.meta.hot?.dispose(unregisterStates)
 
 const launcher = mountStateLauncher({
+  auth: {
+    isSignedIn: Boolean(currentUser),
+    onSignIn: () => signInAsTestUser(),
+    onSignOut: () => signOutTestUser(),
+  },
   target: document.body,
   initiallyOpen: false,
   position: 'bottom-right',
@@ -127,6 +135,12 @@ succeeds, it switches to the opposite action and briefly confirms the new state
 without closing the launcher. While an async handler is pending the toggle is
 disabled; if a handler rejects, the launcher displays the error and keeps the
 current action available. Omit `auth` to hide the toggle.
+
+The same configured actions are available to launch handlers as `signIn()` and
+`signOut()`. Each method invokes its callback only when the launcher is in the
+opposite authentication state, so repeated or concurrent calls are safe. A
+successful call updates the toggle and `homePath` state. Calling either method
+without a mounted launcher configured with `auth` rejects.
 
 The launcher keeps successful launches from the past 24 hours in local storage.
 When the search is empty, up to three registered commands with the most recent

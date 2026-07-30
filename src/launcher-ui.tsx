@@ -6,7 +6,7 @@ import { searchFields, segments, type FieldMatch, type MatchRange } from 'fuzzys
 import type { TargetedFocusEvent, TargetedPointerEvent } from 'preact'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
-import type { MountStateLauncherOptions } from './index'
+import type { MountStateLauncherOptions, StateLauncherAuthOptions } from './index'
 import styles from './launcher.module.css'
 import {
   clearActiveState,
@@ -23,8 +23,14 @@ const mobileViewportQuery = '(max-width: 1024px)'
 const swipeDismissDistance = 56
 const authConfirmationDurationMs = 2500
 
+export type LauncherAuth = Pick<StateLauncherAuthOptions, 'homePath'> & {
+  readonly isSignedIn: Signal<boolean>
+  signIn(): Promise<void>
+  signOut(): Promise<void>
+}
+
 export type LauncherProps = {
-  auth?: MountStateLauncherOptions['auth']
+  auth?: LauncherAuth
   isOpen: Signal<boolean>
   position: NonNullable<MountStateLauncherOptions['position']>
   showPathname: boolean
@@ -48,7 +54,6 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const [isClearPending, setIsClearPending] = useState(false)
   const [isEditingPathname, setIsEditingPathname] = useState(false)
   const [isRefreshPending, setIsRefreshPending] = useState(false)
-  const [isSignedIn, setIsSignedIn] = useState(() => auth?.isSignedIn ?? false)
   const authConfirmationTimeoutRef = useRef<number>()
   const isAuthDismissSuppressedRef = useRef(false)
   const isAuthPendingRef = useRef(false)
@@ -61,6 +66,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const hasOpenedRef = useRef(isOpen.value)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
   const isLauncherOpen = isOpen.value
+  const isSignedIn = auth?.isSignedIn.value ?? false
   const panelState = isLauncherOpen ? 'open' : hasOpenedRef.current ? 'closed' : 'idle'
 
   if (isLauncherOpen) {
@@ -100,9 +106,8 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
     setIsAuthPending(true)
 
     try {
-      await (wasSignedIn ? auth.onSignOut() : auth.onSignIn())
-      setIsSignedIn(!wasSignedIn)
-      setAuthConfirmation(wasSignedIn ? 'signed-out' : 'signed-in')
+      await (wasSignedIn ? auth.signOut() : auth.signIn())
+      setAuthConfirmation(auth.isSignedIn.value ? 'signed-in' : 'signed-out')
       authConfirmationTimeoutRef.current = window.setTimeout(() => {
         isAuthDismissSuppressedRef.current = false
         setAuthConfirmation(undefined)

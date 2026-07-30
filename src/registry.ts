@@ -5,6 +5,7 @@ import type {
   LaunchHandler,
   StateLauncherCommand,
 } from './index'
+import { signIn, signOut } from './launcher-auth'
 
 const launchHandlerKey: unique symbol = Symbol('state-launcher launch handler')
 const hasLaunchHandlerKey: unique symbol = Symbol('state-launcher has launch handler')
@@ -559,6 +560,8 @@ async function runLaunchHandler(launch: LaunchHandler, activeLaunch: ActiveLaunc
     defer(cleanup) {
       registerLaunchCleanup(scope, cleanup)
     },
+    signIn,
+    signOut,
   }
 
   let cleanup: void | LaunchCleanup = undefined

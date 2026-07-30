@@ -4,14 +4,22 @@ import { resolve } from 'node:path'
 import {
   clearCommands,
   defineLaunchableState,
-  mountStateLauncher,
+  mountStateLauncher as mountStateLauncherBase,
   registerLaunchableState,
+  type MountedStateLauncher,
   type MountStateLauncherOptions,
 } from '../src/index'
 
 const launcherCss = readFileSync(resolve('src/launcher.module.css'), 'utf8')
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
+let mountedLauncher: MountedStateLauncher | undefined
+
+function mountStateLauncher(options?: MountStateLauncherOptions): MountedStateLauncher {
+  mountedLauncher?.unmount()
+  mountedLauncher = mountStateLauncherBase(options)
+  return mountedLauncher
+}
 
 beforeEach(() => {
   Object.defineProperty(window, 'localStorage', {
@@ -22,6 +30,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  mountedLauncher?.unmount()
+  mountedLauncher = undefined
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
@@ -223,6 +233,79 @@ test('shows an auth toggle with the configured authentication state', async () =
   expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign in"]')).toBeTruthy()
 })
 
+test('passes idempotent authentication actions to launch handlers', async () => {
+  const onSignIn = vi.fn()
+  const onSignOut = vi.fn()
+  const command = defineLaunchableState('auth.roundTrip', {
+    async launch({ signIn, signOut }) {
+      await Promise.all([signOut(), signOut()])
+      await Promise.all([signIn(), signIn()])
+      await Promise.all([signIn(), signIn()])
+      await Promise.all([signOut(), signOut()])
+      await Promise.all([signOut(), signOut()])
+    },
+  })
+
+  mountStateLauncher({
+    auth: { isSignedIn: false, onSignIn, onSignOut },
+  })
+
+  await command.launch()
+
+  expect(onSignIn).toHaveBeenCalledOnce()
+  expect(onSignOut).toHaveBeenCalledOnce()
+})
+
+test('synchronizes handler-driven authentication with the launcher UI', async () => {
+  const homePath = vi.fn(({ isSignedIn }: { isSignedIn: boolean }) =>
+    isSignedIn ? '/dashboard' : '/welcome',
+  )
+  const command = defineLaunchableState('auth.signIn', {
+    async launch({ signIn }) {
+      await signIn()
+    },
+  })
+
+  mountStateLauncher({
+    auth: {
+      homePath,
+      isSignedIn: false,
+      onSignIn: vi.fn(),
+      onSignOut: vi.fn(),
+    },
+    initiallyOpen: true,
+    showPathname: true,
+  })
+
+  await command.launch()
+  await nextRender()
+
+  expect(getLauncherShadowRoot()?.querySelector('[aria-label="Sign out"]')).toBeTruthy()
+
+  const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
+  getLauncherShadowRoot()
+    ?.querySelector<HTMLButtonElement>('[aria-label="Go to home page"]')
+    ?.click()
+
+  expect(homePath).toHaveBeenLastCalledWith({ isSignedIn: true })
+  expect(assign).toHaveBeenLastCalledWith(new URL('/dashboard', window.location.href).href)
+})
+
+test('rejects handler auth actions when launcher authentication is unavailable', async () => {
+  const command = defineLaunchableState('auth.signIn', {
+    async launch({ signIn }) {
+      await signIn()
+    },
+  })
+  const launcher = mountStateLauncher({
+    auth: { isSignedIn: false, onSignIn: vi.fn(), onSignOut: vi.fn() },
+  })
+
+  launcher.unmount()
+
+  await expect(command.launch()).rejects.toThrow('State launcher authentication is not configured.')
+})
+
 test('keeps the launcher visible while authentication is pending', async () => {
   let completeSignIn: (() => void) | undefined
   const onSignIn = vi.fn(
@@ -282,8 +365,7 @@ test('temporarily shows auth confirmation in place of the active state', async (
   shadowRoot
     ?.querySelector<HTMLButtonElement>('[data-launcher-utility] [aria-label="Sign out"]')
     ?.click()
-  await Promise.resolve()
-  await Promise.resolve()
+  await vi.advanceTimersByTimeAsync(0)
 
   expect(shadowRoot?.textContent).toContain('Now signed out')
   expect(shadowRoot?.textContent).not.toContain('Active: Active command')
@@ -404,6 +486,18 @@ test('requires auth state and handlers to be defined together', () => {
     }),
   ).toThrow('auth.isSignedIn, auth.onSignIn, and auth.onSignOut must be defined together')
   expect(document.querySelector('[data-state-launcher-host="true"]')).toBeNull()
+})
+
+test('allows only one launcher to be mounted at a time', () => {
+  const launcher = mountStateLauncher()
+
+  expect(() => mountStateLauncherBase()).toThrow(
+    'A state launcher is already mounted. Unmount it before mounting another.',
+  )
+
+  launcher.unmount()
+
+  expect(() => mountStateLauncher()).not.toThrow()
 })
 
 test('hides the launcher when the area above the mobile drawer is tapped', async () => {

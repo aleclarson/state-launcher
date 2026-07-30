@@ -477,6 +477,8 @@ test('passes a launch context to handlers', async () => {
     launch: vi.fn((context) => {
       expect(context.signal).toBeInstanceOf(AbortSignal)
       expect(context.signal.aborted).toBe(false)
+      expect(context.signIn).toBeTypeOf('function')
+      expect(context.signOut).toBeTypeOf('function')
     }),
   })
 
