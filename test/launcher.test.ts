@@ -138,9 +138,13 @@ test('tracks the visual viewport while the mobile keyboard is visible', async ()
 test('renders mobile drawer dismissal affordances', () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
+  const panel = shadowRoot?.querySelector('[role="dialog"]')
+  const dragArea = shadowRoot?.querySelector('[data-launcher-drag-area]')
+  const searchInput = shadowRoot?.querySelector('[aria-label="Filter commands"]')
 
   expect(shadowRoot?.querySelector('[aria-label="Close launcher"]')).toBeTruthy()
-  expect(shadowRoot?.querySelector('[aria-hidden="true"]')).toBeTruthy()
+  expect(panel?.firstElementChild).toBe(dragArea)
+  expect(dragArea?.nextElementSibling).toBe(searchInput)
   expect(launcherCss).toContain('touch-action: none')
 })
 
@@ -525,15 +529,15 @@ test('hides the launcher when the area above the mobile drawer is tapped', async
   expect(shadowRoot?.querySelector('[data-state="closed"]')).toBeTruthy()
 })
 
-test('hides the launcher after a downward swipe from the utility row', async () => {
+test('hides the launcher after a downward swipe from the drag area', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
-  const utilityRow = shadowRoot?.querySelector('[data-launcher-utility]')
+  const dragArea = shadowRoot?.querySelector('[data-launcher-drag-area]')
 
-  utilityRow?.dispatchEvent(
+  dragArea?.dispatchEvent(
     new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
   )
-  utilityRow?.dispatchEvent(
+  dragArea?.dispatchEvent(
     new PointerEvent('pointermove', { bubbles: true, clientX: 24, clientY: 100, pointerId: 1 }),
   )
   await nextRender()
@@ -541,15 +545,15 @@ test('hides the launcher after a downward swipe from the utility row', async () 
   expect(shadowRoot?.querySelector('[role="dialog"]')).toBeNull()
 })
 
-test('keeps the launcher open for a short or mostly horizontal utility-row swipe', async () => {
+test('keeps the launcher open for a short or mostly horizontal drag-area swipe', async () => {
   mountStateLauncher({ initiallyOpen: true })
   const shadowRoot = getLauncherShadowRoot()
-  const utilityRow = shadowRoot?.querySelector('[data-launcher-utility]')
+  const dragArea = shadowRoot?.querySelector('[data-launcher-drag-area]')
 
-  utilityRow?.dispatchEvent(
+  dragArea?.dispatchEvent(
     new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 40, pointerId: 1 }),
   )
-  utilityRow?.dispatchEvent(
+  dragArea?.dispatchEvent(
     new PointerEvent('pointermove', { bubbles: true, clientX: 90, clientY: 75, pointerId: 1 }),
   )
   await nextRender()

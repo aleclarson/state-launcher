@@ -403,6 +403,17 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
           onFocusOut={hideWhenFocusLeaves}
           role={isLauncherOpen ? 'dialog' : undefined}
         >
+          <div
+            aria-hidden="true"
+            class={styles.dragArea}
+            data-launcher-drag-area=""
+            onPointerCancel={stopSwipe}
+            onPointerDown={startSwipe}
+            onPointerMove={updateSwipe}
+            onPointerUp={stopSwipe}
+          >
+            <span class={styles.dragHandle} />
+          </div>
           <input
             aria-label="Filter commands"
             class={styles.searchInput}
@@ -443,15 +454,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
             </div>
           ) : null}
           <div class={styles.groups}>
-            <div
-              class={styles.utilityBar}
-              data-launcher-utility=""
-              onPointerCancel={stopSwipe}
-              onPointerDown={startSwipe}
-              onPointerMove={updateSwipe}
-              onPointerUp={stopSwipe}
-            >
-              <span aria-hidden="true" class={styles.dragHandle} />
+            <div class={styles.utilityBar} data-launcher-utility="">
               {showPathname ? (
                 <form
                   class={styles.pathnameBar}

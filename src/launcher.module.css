@@ -73,7 +73,7 @@
   }
 
   .dismissArea,
-  .dragHandle {
+  .dragArea {
     display: none;
   }
 
@@ -525,8 +525,12 @@
       width: 100%;
     }
 
-    .utilityBar {
-      padding-top: 16px;
+    .dragArea {
+      align-items: center;
+      display: flex;
+      flex-shrink: 0;
+      height: 16px;
+      justify-content: center;
       touch-action: none;
     }
 
@@ -562,12 +566,8 @@
       border-radius: 999px;
       display: block;
       height: 5px;
-      left: 50%;
       opacity: 0.55;
       pointer-events: none;
-      position: absolute;
-      top: 5px;
-      transform: translateX(-50%);
       width: 38px;
     }
 
