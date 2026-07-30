@@ -159,7 +159,7 @@ test('uses mobile-sized utility controls and icons', () => {
     /\.pathnameHome \{[\s\S]*?height: 44px;[\s\S]*?padding: 11px;[\s\S]*?width: 44px;/,
   )
   expect(mobileCss).toMatch(/\.pathnameHomeIcon \{[\s\S]*?height: 22px;[\s\S]*?width: 22px;/)
-  expect(mobileCss).toMatch(/\.pathnameInput,[\s\S]*?\.pathnameValue \{[\s\S]*?height: 44px;/)
+  expect(mobileCss).toMatch(/\.pathnameInput,[\s\S]*?\.pathnameValue \{[\s\S]*?height: 36px;/)
 })
 
 test('renders one utility row inside the scrollable command list', () => {
