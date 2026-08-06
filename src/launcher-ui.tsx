@@ -15,6 +15,7 @@ import {
   subscribeCommandRecords,
   type CommandRecordSnapshot,
 } from './registry'
+import { hasMatchingRoute } from './route-pattern'
 
 const launchHistoryStorageKey = 'state-launcher.launch-history.v1'
 const launchHistoryWindowMs = 24 * 60 * 60 * 1000
@@ -32,7 +33,9 @@ export type LauncherAuth = Pick<StateLauncherAuthOptions, 'homePath'> & {
 export type LauncherProps = {
   auth?: LauncherAuth
   isOpen: Signal<boolean>
+  pathname: string
   position: NonNullable<MountStateLauncherOptions['position']>
+  refreshPathname(): void
   showPathname: boolean
   title: string
 }
@@ -42,13 +45,22 @@ type LaunchHistory = Record<string, number[]>
 type CommandSearchView = {
   commands: CommandRecordSnapshot[]
   matches: ReadonlyMap<string, readonly FieldMatch[]>
+  routeMatchedCommandIds: ReadonlySet<string>
 }
 type CommandGroup = {
   commands: { command: CommandRecordSnapshot; index: number }[]
   name?: string
 }
 
-export function LauncherShell({ auth, isOpen, position, showPathname, title }: LauncherProps) {
+export function LauncherShell({
+  auth,
+  isOpen,
+  pathname,
+  position,
+  refreshPathname,
+  showPathname,
+  title,
+}: LauncherProps) {
   const [commands, setCommands] = useState(() => listCommandRecords())
   const commandsRef = useRef(commands)
   const [authConfirmation, setAuthConfirmation] = useState<'signed-in' | 'signed-out'>()
@@ -68,6 +80,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const pendingCommandIdRef = useRef<string>()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const hasOpenedRef = useRef(isOpen.value)
+  const previousPathnameRef = useRef(pathname)
   const swipeStartRef = useRef<{ pointerId: number; x: number; y: number }>()
   const isLauncherOpen = isOpen.value
   const isSignedIn = auth?.isSignedIn.value ?? false
@@ -79,14 +92,18 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
   const visibleCommands = useSignal(commands)
   const commandMatches = useSignal<ReadonlyMap<string, readonly FieldMatch[]>>(new Map())
   const recentCommandIds = useSignal<string[]>([])
+  const routeMatchedCommandIds = useSignal<ReadonlySet<string>>(new Set())
   const isSearchActive = useSignal(false)
+  const currentPathname = pathname
   const currentVisibleCommands = visibleCommands.value
   const currentCommandMatches = commandMatches.value
   const currentRecentCommandIds = recentCommandIds.value
+  const currentRouteMatchedCommandIds = routeMatchedCommandIds.value
   const groupedCommands = groupCommands(
     currentVisibleCommands,
     currentRecentCommandIds,
     isSearchActive.value,
+    currentRouteMatchedCommandIds,
   )
   const activeCommand = commands.find((command) => command.isActive)
   const isCommandInteractionPending = Boolean(pendingCommandId) || isClearPending
@@ -97,9 +114,10 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
 
   function refreshVisibleCommands(nextCommands = commands, query = readSearchQuery()) {
     const trimmedQuery = query.trim()
-    const searchView = filterAndRankCommands(nextCommands, query)
+    const searchView = filterAndRankCommands(nextCommands, query, currentPathname)
     visibleCommands.value = searchView.commands
     commandMatches.value = searchView.matches
+    routeMatchedCommandIds.value = searchView.routeMatchedCommandIds
     recentCommandIds.value = trimmedQuery ? [] : readRecentCommandIds(Date.now(), nextCommands)
     isSearchActive.value = Boolean(trimmedQuery)
   }
@@ -348,6 +366,23 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
     }
   }, [isLauncherOpen])
 
+  useEffect(() => {
+    window.addEventListener('popstate', refreshPathname)
+    return () => {
+      window.removeEventListener('popstate', refreshPathname)
+    }
+  }, [refreshPathname])
+
+  useLayoutEffect(() => {
+    if (previousPathnameRef.current === currentPathname) {
+      return
+    }
+
+    previousPathnameRef.current = currentPathname
+    refreshVisibleCommands(commandsRef.current)
+    searchNavigation.resetActiveIndex()
+  }, [currentPathname])
+
   useLayoutEffect(() => {
     if (isEditingPathname) {
       pathnameInputRef.current?.focus()
@@ -491,7 +526,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
                     <input
                       aria-label="Pathname"
                       class={styles.pathnameInput}
-                      defaultValue={window.location.pathname}
+                      defaultValue={currentPathname}
                       onBlur={() => {
                         setIsEditingPathname(false)
                       }}
@@ -509,7 +544,7 @@ export function LauncherShell({ auth, isOpen, position, showPathname, title }: L
                       }}
                       type="button"
                     >
-                      {window.location.pathname}
+                      {currentPathname}
                     </button>
                   )}
                 </form>
@@ -798,19 +833,23 @@ function haveMatchingCommandSnapshots(
 function filterAndRankCommands(
   commands: CommandRecordSnapshot[],
   query: string,
+  pathname: string,
 ): CommandSearchView {
   const now = Date.now()
   const launchHistory = readLaunchHistory(now)
   const launchCounts = createLaunchCounts(launchHistory)
   const trimmedQuery = query.trim()
+  const routeMatchedCommandIds = getRouteMatchedCommandIds(commands, pathname)
 
   if (!trimmedQuery) {
     return {
       commands: rankRecentCommands(
-        rankCommands(commands, launchCounts, true),
+        rankCommands(commands, launchCounts, routeMatchedCommandIds, true),
         readRecentCommandIds(now, commands, launchHistory),
+        routeMatchedCommandIds,
       ),
       matches: new Map(),
+      routeMatchedCommandIds,
     }
   }
 
@@ -825,18 +864,47 @@ function filterAndRankCommands(
     commands: rankCommands(
       searchResult.items.map((item) => item.value),
       launchCounts,
+      routeMatchedCommandIds,
     ),
     matches: new Map(searchResult.items.map((item) => [item.value.id, item.fields])),
+    routeMatchedCommandIds,
   }
+}
+
+function getRouteMatchedCommandIds(
+  commands: readonly CommandRecordSnapshot[],
+  pathname: string,
+): ReadonlySet<string> {
+  const routeMatchedCommandIds = new Set<string>()
+
+  for (const command of commands) {
+    if (hasMatchingRoute(pathname, command.routes)) {
+      routeMatchedCommandIds.add(command.id)
+    }
+  }
+
+  return routeMatchedCommandIds
 }
 
 function rankRecentCommands(
   commands: CommandRecordSnapshot[],
   recentCommandIds: readonly string[],
+  routeMatchedCommandIds: ReadonlySet<string>,
 ): CommandRecordSnapshot[] {
   const recentRanks = new Map(recentCommandIds.map((id, index) => [id, index]))
 
   return [...commands].sort((left, right) => {
+    if (left.hasLaunchHandler !== right.hasLaunchHandler) {
+      return left.hasLaunchHandler ? -1 : 1
+    }
+
+    const leftRouteRank = routeMatchedCommandIds.has(left.id)
+    const rightRouteRank = routeMatchedCommandIds.has(right.id)
+
+    if (leftRouteRank !== rightRouteRank) {
+      return leftRouteRank ? -1 : 1
+    }
+
     const leftRank = recentRanks.get(left.id)
     const rightRank = recentRanks.get(right.id)
 
@@ -856,11 +924,19 @@ function rankRecentCommands(
 function rankCommands(
   commands: CommandRecordSnapshot[],
   launchCounts: LaunchCounts,
+  routeMatchedCommandIds: ReadonlySet<string>,
   sortWithinLaunchability = false,
 ): CommandRecordSnapshot[] {
   return [...commands].sort((left, right) => {
     if (left.hasLaunchHandler !== right.hasLaunchHandler) {
       return left.hasLaunchHandler ? -1 : 1
+    }
+
+    const leftRouteRank = routeMatchedCommandIds.has(left.id)
+    const rightRouteRank = routeMatchedCommandIds.has(right.id)
+
+    if (leftRouteRank !== rightRouteRank) {
+      return leftRouteRank ? -1 : 1
     }
 
     const launchCountDelta = (launchCounts.get(right.id) ?? 0) - (launchCounts.get(left.id) ?? 0)
@@ -974,6 +1050,7 @@ function groupCommands(
   commands: CommandRecordSnapshot[],
   recentCommandIds: readonly string[],
   isSearchActive: boolean,
+  routeMatchedCommandIds: ReadonlySet<string>,
 ): CommandGroup[] {
   if (isSearchActive) {
     return [
@@ -987,11 +1064,14 @@ function groupCommands(
   const recentCommands = new Set(recentCommandIds)
 
   for (const [index, command] of commands.entries()) {
-    const groupName = recentCommands.has(command.id)
-      ? 'Recent'
-      : command.id.includes('.')
-        ? command.id.split('.')[0]!
-        : 'ungrouped'
+    const groupName =
+      command.hasLaunchHandler && routeMatchedCommandIds.has(command.id)
+        ? 'On this route'
+        : recentCommands.has(command.id)
+          ? 'Recent'
+          : command.id.includes('.')
+            ? command.id.split('.')[0]!
+            : 'ungrouped'
     const group = groups.get(groupName)
     const item = { command, index }
 

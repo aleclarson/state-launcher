@@ -34,6 +34,23 @@ test('defines commands without registering them', async () => {
   expect(launch).toHaveBeenCalledOnce()
 })
 
+test('normalizes and exposes route metadata on defined and registered commands', () => {
+  const routes = ['/billing/', '/billing/invoices/*']
+  const command = defineLaunchableState('billing.paymentFailed', { routes })
+
+  expect(command.routes).toEqual(['/billing', '/billing/invoices/*'])
+
+  routes.push('/settings')
+  registerLaunchableState([command])
+
+  expect(listCommandRecords()).toEqual([
+    expect.objectContaining({
+      command,
+      routes: ['/billing', '/billing/invoices/*'],
+    }),
+  ])
+})
+
 test('registers commands and merges duplicate ids', async () => {
   const first = defineLaunchableState('billing.paymentFailed', {
     label: 'Payment failed',

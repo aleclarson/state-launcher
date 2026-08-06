@@ -5,6 +5,7 @@
 The package intentionally separates discovery from behavior:
 
 - The launcher panel discovers registered commands, groups them by id prefix while browsing, filters them into a flat ranked result list, and reports launch errors.
+- Commands may declare pathname patterns so route-relevant states can be boosted in the panel.
 - The host application decides what each command actually does.
 - Tests and setup scripts can launch the same commands without mounting the panel.
 
@@ -27,6 +28,7 @@ import { defineLaunchableState } from 'state-launcher'
 export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
   tags: ['billing', 'card'],
+  routes: ['/billing/*'],
 })
 ```
 
@@ -57,6 +59,19 @@ Use:
 Mounted launchers subscribe to registry changes. Clearing commands while a launcher is mounted updates the panel to show the empty registry.
 
 Successful launches are retained in browser local storage for 24 hours. With an empty search, the launcher surfaces up to three registered commands with the latest launches in a leading Recent group. Stale history for unregistered commands is not displayed. During search, namespace and Recent groups are removed so launchability and launch-frequency boosts apply to one globally ranked result list.
+
+Commands can also declare `routes`, an array of pathname patterns used only as a
+contextual ranking hint. Exact patterns match one normalized pathname, while a
+terminal `/*` matches that pathname and all descendants. Query strings and
+hashes are ignored. Route-matched launchable commands appear in an `On this
+route` group before Recent commands when the search is empty; search results stay
+flat and receive the same route boost. Launchability still takes precedence, so
+a disabled route-matched command remains below commands with handlers.
+
+The mounted controller's `refresh()` method re-reads the current pathname and
+refreshes route ranking. This is useful after SPA navigation through
+`history.pushState()` or `history.replaceState()`; browser back/forward changes
+are handled through `popstate`.
 
 ## Launch handlers
 
@@ -147,6 +162,7 @@ calls updated handlers without reattaching the registry handler.
 - a non-sticky utility row at the top of the command list containing refresh and optional home, editable-pathname, and authentication controls
 - optional idempotent sign-out/sign-in actions initialized by `auth.isSignedIn`, backed by paired `auth.onSignOut` and `auth.onSignIn` handlers, and shared by the toggle and launch handlers
 - fuzzy filtering across id, label, description, and tags, with flat globally ranked search results, launchable commands ranked first, contributing text highlighted, and matching tags revealed
+- route-aware ranking from command pathname patterns, with an `On this route` group while browsing
 - keyboard navigation with arrow keys and Enter
 - error display for failed launches
 

@@ -32,6 +32,7 @@ afterEach(() => {
   vi.useRealTimers()
   mountedLauncher?.unmount()
   mountedLauncher = undefined
+  window.history.replaceState({}, '', '/')
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
@@ -913,6 +914,148 @@ test('boosts states launched in the past 24 hours in search results', async () =
   await nextRender()
 
   expect(getCommandLabels()).toEqual(['Payment failed', 'Empty invoices'])
+})
+
+test('boosts route-matched states in a leading route group', async () => {
+  const now = Date.now()
+  window.history.replaceState({}, '', '/billing/invoices/42')
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'inbox.manyMessages': [now, now - 1000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      routes: ['/inbox/*'],
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      routes: ['/billing/invoices/*'],
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  const shadowRoot = getLauncherShadowRoot()
+  const groups = [...shadowRoot!.querySelectorAll<HTMLElement>('section section')]
+
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Many messages'])
+  expect(groups.map((group) => group.querySelector('h3')?.textContent)).toEqual([
+    'On this route',
+    'Recent',
+  ])
+})
+
+test('boosts route-matched states in flat search results', async () => {
+  const now = Date.now()
+  window.history.replaceState({}, '', '/billing')
+  window.localStorage.setItem(
+    launchHistoryStorageKey,
+    JSON.stringify({
+      'inbox.paymentHelp': [now, now - 1000, now - 2000],
+    }),
+  )
+  registerLaunchableState([
+    defineLaunchableState('inbox.paymentHelp', {
+      label: 'Payment helper',
+      routes: ['/inbox/*'],
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      routes: ['/billing'],
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  const shadowRoot = getLauncherShadowRoot()
+  const search = shadowRoot?.querySelector<HTMLInputElement>('input[type="search"]')
+
+  search!.value = 'payment'
+  search!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Payment helper'])
+  expect(shadowRoot?.querySelector('[role="listbox"] h3')).toBeNull()
+})
+
+test('keeps route-matched disabled commands below launchable commands', async () => {
+  window.history.replaceState({}, '', '/billing')
+  registerLaunchableState([
+    defineLaunchableState('billing.disabled', {
+      label: 'Disabled billing state',
+      routes: ['/billing'],
+    }),
+    defineLaunchableState('inbox.enabled', {
+      label: 'Enabled inbox state',
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Enabled inbox state', 'Disabled billing state'])
+})
+
+test('refreshes route ranking after SPA navigation', async () => {
+  window.history.replaceState({}, '', '/billing')
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      routes: ['/billing'],
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      routes: ['/inbox/*'],
+      launch: vi.fn(),
+    }),
+  ])
+
+  const launcher = mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+  expect(getCommandLabels()).toEqual(['Payment failed', 'Many messages'])
+
+  window.history.pushState({}, '', '/inbox/thread/42')
+  launcher.refresh()
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Many messages', 'Payment failed'])
+  expect(getLauncherShadowRoot()?.querySelector('[role="listbox"] h3')?.textContent).toBe(
+    'On this route',
+  )
+})
+
+test('refreshes route ranking after browser history navigation', async () => {
+  window.history.replaceState({}, '', '/billing')
+  registerLaunchableState([
+    defineLaunchableState('billing.paymentFailed', {
+      label: 'Payment failed',
+      routes: ['/billing'],
+      launch: vi.fn(),
+    }),
+    defineLaunchableState('inbox.manyMessages', {
+      label: 'Many messages',
+      routes: ['/inbox/*'],
+      launch: vi.fn(),
+    }),
+  ])
+
+  mountStateLauncher({ initiallyOpen: true })
+  await nextRender()
+
+  window.history.pushState({}, '', '/inbox/thread/42')
+  window.dispatchEvent(new PopStateEvent('popstate'))
+  await nextRender()
+
+  expect(getCommandLabels()).toEqual(['Many messages', 'Payment failed'])
 })
 
 test('renders search results as one flat globally ranked list', async () => {

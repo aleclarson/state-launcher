@@ -6,6 +6,7 @@ export type LaunchableStateOptions = {
   label?: string;
   description?: string;
   tags?: string[];
+  routes?: readonly StateLauncherRoutePattern[];
   launch?: LaunchHandler;
 };
 export type LaunchCleanup = () => void | Promise<void>;
@@ -18,6 +19,7 @@ export type LaunchContext = {
 export type LaunchHandler = (_: LaunchContext) => void | LaunchCleanup | Promise<void | LaunchCleanup>;
 export type MountedStateLauncher = {
   unmount(): void;
+  refresh(): void;
   open(): void;
   close(): void;
   toggle(): void;
@@ -43,8 +45,10 @@ export type StateLauncherCommand<Id extends string = string> = {
   readonly label?: string;
   readonly description?: string;
   readonly tags?: readonly string[];
+  readonly routes?: readonly StateLauncherRoutePattern[];
   launch(): Promise<void>;
 };
+export type StateLauncherRoutePattern = string;
 // #endregion
 
 // #region Functions

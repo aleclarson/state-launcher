@@ -50,6 +50,8 @@ export type StateLauncherAuthOptions = {
 export type MountedStateLauncher = {
   /** Remove the launcher UI. Registered commands are left unchanged. */
   unmount(): void
+  /** Re-read the current pathname and refresh route-aware command ranking. */
+  refresh(): void
   /** Open the launcher panel. */
   open(): void
   /** Close the launcher panel. */
@@ -57,6 +59,9 @@ export type MountedStateLauncher = {
   /** Toggle the launcher panel. */
   toggle(): void
 }
+
+/** Pathname pattern used to boost a command on matching routes. */
+export type StateLauncherRoutePattern = string
 
 /** Stable handle for a launchable application state. */
 export type StateLauncherCommand<Id extends string = string> = {
@@ -68,6 +73,8 @@ export type StateLauncherCommand<Id extends string = string> = {
   readonly description?: string
   /** Searchable tags used by the launcher filter. */
   readonly tags?: readonly string[]
+  /** Pathname patterns that boost this command on matching routes. */
+  readonly routes?: readonly StateLauncherRoutePattern[]
   /** Launch this command through its currently registered handlers. */
   launch(): Promise<void>
 }
@@ -109,6 +116,8 @@ export type LaunchableStateOptions = {
   description?: string
   /** Searchable tags used by the launcher filter. */
   tags?: string[]
+  /** Pathname patterns that boost this command on matching routes. */
+  routes?: readonly StateLauncherRoutePattern[]
   /** Handler that puts the host application into this state. */
   launch?: LaunchHandler
 }

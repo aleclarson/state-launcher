@@ -6,6 +6,7 @@ import type {
   StateLauncherCommand,
 } from './index'
 import { signIn, signOut } from './launcher-auth'
+import { normalizeRoutePattern } from './route-pattern'
 
 const launchHandlerKey: unique symbol = Symbol('state-launcher launch handler')
 const hasLaunchHandlerKey: unique symbol = Symbol('state-launcher has launch handler')
@@ -28,6 +29,7 @@ export type CommandRecord = {
   label?: string
   description?: string
   tags?: string[]
+  routes?: string[]
   registrations: Set<CommandRegistration>
   retainedCommands: Set<StateLauncherCommand>
   attachedHandlers: Set<LaunchHandler>
@@ -40,6 +42,7 @@ export type CommandRecordSnapshot = Readonly<{
   label?: string
   description?: string
   tags: readonly string[]
+  routes: readonly string[]
   hasLaunchHandler: boolean
   isActive: boolean
 }>
@@ -96,6 +99,7 @@ export function defineLaunchableState<const Id extends string>(
     label: options?.label,
     description: options?.description,
     tags: options?.tags ? [...options.tags] : undefined,
+    routes: options?.routes ? options.routes.map(normalizeRoutePattern) : undefined,
     async launch() {
       await launchCommand(command)
     },
@@ -287,6 +291,7 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
         label: record.label,
         description: record.description,
         tags: record.tags ?? [],
+        routes: record.routes ?? [],
         hasLaunchHandler: record.launchHandlers.size > 0,
         isActive: record.id === committedLaunch?.id,
       })
@@ -445,6 +450,7 @@ function refreshCommandRecord(record: CommandRecord, fallbackCommand = record.co
   record.label = command.label
   record.description = command.description
   record.tags = command.tags ? [...command.tags] : undefined
+  record.routes = command.routes ? command.routes.map(normalizeRoutePattern) : undefined
 
   record.launchHandlers = new Set(record.attachedHandlers)
 

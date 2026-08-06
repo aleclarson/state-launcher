@@ -11,6 +11,9 @@ import { LauncherShell, type LauncherAuth, type LauncherProps } from './launcher
 const defaultTitle = 'Commands'
 const defaultPosition = 'bottom-right'
 let mountedLauncher: object | undefined
+type LauncherControllerProps = LauncherProps & {
+  setOpen(nextOpen: boolean): void
+}
 
 /**
  * Mount the Shadow DOM-isolated launcher panel UI.
@@ -41,7 +44,18 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
   })
   const isOpen = signal(Boolean(options.initiallyOpen))
   let mounted = true
-  const props = {
+  let props: LauncherControllerProps
+
+  function refreshPathname() {
+    if (!mounted) {
+      return
+    }
+
+    props.pathname = window.location.pathname
+    launcherIsolet.update(props)
+  }
+
+  props = {
     auth,
     isOpen,
     setOpen(nextOpen: boolean) {
@@ -55,6 +69,8 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
       launcherIsolet.update(props)
     },
     position,
+    pathname: window.location.pathname,
+    refreshPathname,
     showPathname: options.showPathname ?? false,
     title: options.title ?? defaultTitle,
   }
@@ -98,6 +114,9 @@ export function mountStateLauncher(options: MountStateLauncherOptions = {}): Mou
           mountedLauncher = undefined
         }
       }
+    },
+    refresh() {
+      refreshPathname()
     },
   }
 }

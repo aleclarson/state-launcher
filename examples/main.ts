@@ -6,6 +6,7 @@ const billingPaymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
   description: 'Customer has a failed payment method.',
   tags: ['billing', 'card'],
+  routes: ['/billing/*'],
   launch() {
     status.textContent = 'Launched billing.paymentFailed'
   },
@@ -15,6 +16,7 @@ const billingEmptyInvoices = defineLaunchableState('billing.emptyInvoices', {
   label: 'Empty invoices',
   description: 'Customer has no invoices.',
   tags: ['billing'],
+  routes: ['/billing/*'],
   launch() {
     status.textContent = 'Launched billing.emptyInvoices'
   },
@@ -24,6 +26,7 @@ const inboxManyMessages = defineLaunchableState('inbox.manyMessages', {
   label: 'Many messages',
   description: 'Inbox is full of unread messages.',
   tags: ['inbox'],
+  routes: ['/inbox/*'],
   async launch() {
     status.textContent = 'Launched inbox.manyMessages'
     await billingPaymentFailed.launch()

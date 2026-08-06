@@ -52,6 +52,7 @@ export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
   description: 'Customer has a failed payment method.',
   tags: ['billing', 'card'],
+  routes: ['/billing/*'],
   async launch({ signIn }) {
     await signIn()
     await createFailedPaymentMethod()
@@ -147,6 +148,28 @@ When the search is empty, up to three registered commands with the most recent
 launches appear in a leading Recent group. Search results continue to use launch
 frequency as a ranking hint, highlight the text that contributed to each match,
 and reveal only matching tags.
+
+Commands can declare pathname patterns with `routes` to boost states that are
+relevant to the current page:
+
+```ts
+defineLaunchableState('billing.paymentFailed', {
+  label: 'Payment failed',
+  routes: ['/billing', '/billing/invoices/*'],
+})
+```
+
+Exact patterns match one normalized pathname. A terminal `/*` matches that
+pathname and its descendants; query strings and hashes are ignored. With an
+empty search, matching launchable commands appear in an `On this route` group
+before recent commands. During search, they remain in the flat global result
+list but receive the same ranking boost. Route relevance never moves a command
+without a launch handler above a launchable command.
+
+The launcher rechecks route relevance when it opens and when browser history
+navigation emits `popstate`. For single-page navigations that call
+`history.pushState()` or `history.replaceState()`, call the mounted controller's
+`refresh()` method after changing the URL.
 
 `defineLaunchableState()` is annotated as side-effect free, and the package marks
 its modules as side-effect free for bundlers. Keep `registerLaunchableState()`

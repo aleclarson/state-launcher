@@ -44,6 +44,7 @@ const commands = [
     label: 'Payment failed',
     description: 'Customer has a failed card and open invoice.',
     tags: ['billing', 'card', 'invoice'],
+    routes: ['/billing/*'],
     launch() {
       emitScenario({
         name: 'Payment failed',
@@ -55,6 +56,7 @@ const commands = [
     label: 'Empty invoices',
     description: 'Customer has no invoice history.',
     tags: ['billing', 'empty'],
+    routes: ['/billing/*'],
     launch() {
       emitScenario({
         name: 'Empty invoices',
@@ -66,6 +68,7 @@ const commands = [
     label: 'Many messages',
     description: 'Async command with searchable inbox tags.',
     tags: ['inbox', 'async', 'messages'],
+    routes: ['/inbox/*'],
     async launch({ signal }) {
       emitScenario({
         name: 'Loading inbox',
@@ -98,6 +101,7 @@ const commands = [
     label: 'Launch error',
     description: 'Throws to verify launcher error display.',
     tags: ['inbox', 'error'],
+    routes: ['/inbox/*'],
     launch() {
       throw new Error('Playground command failed.')
     },
