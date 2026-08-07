@@ -1,6 +1,6 @@
 # state-launcher
 
-`state-launcher` is a dev/test-only command launcher for putting an application into named states from an isolated in-page panel.
+`state-launcher` is a dev/test-only command launcher for putting an application into named states from an isolated in-page panel or a headless controller surface.
 
 Use it when you want QA, designers, or developers to jump directly to states such as `billing.paymentFailed` or `inbox.manyMessages` without wiring those states into production navigation.
 
@@ -9,6 +9,7 @@ Use it when you want QA, designers, or developers to jump directly to states suc
 Use this package if you need:
 
 - a small browser UI for launching registered app states during development or tests
+- a serializable command catalog and headless controller API for a retained WebView or other host integration
 - command definitions that can live separately from the code that knows how to enter a state
 - direct programmatic launching for tests or setup scripts
 - Shadow DOM style isolation so the launcher does not inherit app CSS
@@ -83,6 +84,43 @@ document.querySelector('#open-state-launcher')?.addEventListener('click', () => 
 
 await paymentFailed.launch()
 ```
+
+## Headless controller surface
+
+Use `state-launcher/headless` when the retained WebView should keep the registry
+and launch lifecycle but a host wants to provide its own command browser. This
+entry point does not import Preact, mount a Shadow DOM, or render the launcher
+panel. It observes the same singleton registry used by the browser UI:
+
+```ts
+import {
+  clearActiveState,
+  getStateLauncherSnapshot,
+  launchStateLauncherCommand,
+  subscribeStateLauncher,
+} from 'state-launcher/headless'
+
+const publishCommandCatalog = (snapshot: ReturnType<typeof getStateLauncherSnapshot>) => {
+  console.log(JSON.stringify(snapshot))
+}
+
+publishCommandCatalog(getStateLauncherSnapshot())
+const unsubscribe = subscribeStateLauncher(publishCommandCatalog)
+
+await launchStateLauncherCommand('billing.paymentFailed')
+await clearActiveState()
+
+unsubscribe()
+```
+
+Each snapshot contains only serializable command records: `id`, display
+metadata, `tags`, `routes`, `hasLaunchHandler`, and `isActive`. The subscription
+receives a fresh snapshot after registration, unregistration, handler
+availability, and committed active-state changes. Launching by id uses the same
+handlers, `AbortSignal`, cleanup functions, and error behavior as the panel.
+Clear resolves after active cleanup completes. This is an integration/controller
+surface for development and testing; it is not production navigation, a feature
+flag system, or a representation of end-user application state.
 
 `position` selects one of four fixed desktop corners. At viewport widths of
 `1024px` and below, the package uses a fullscreen bottom drawer regardless of the

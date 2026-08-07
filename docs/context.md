@@ -1,6 +1,6 @@
 # state-launcher context
 
-`state-launcher` models launchable application states as named commands. A command is a stable id plus optional display metadata and an optional launch handler.
+`state-launcher` models launchable application states as named commands. A command is a stable id plus optional display metadata and an optional launch handler. The optional `state-launcher/headless` entry point exposes the same registry as a serializable controller surface without mounting the browser UI.
 
 The package intentionally separates discovery from behavior:
 
@@ -98,6 +98,37 @@ Cleanup callbacks may be async. State transitions and `clearActiveState()` await
 
 Handlers may be synchronous or async. Errors thrown by handlers propagate to programmatic callers and are shown in the panel when launched from the UI.
 
+## Headless controller surface
+
+Import `state-launcher/headless` when another development or testing host should
+present the command catalog while the retained WebView remains responsible for
+state registration and transitions:
+
+```ts
+import {
+  clearActiveState,
+  getStateLauncherSnapshot,
+  launchStateLauncherCommand,
+  subscribeStateLauncher,
+} from 'state-launcher/headless'
+```
+
+`getStateLauncherSnapshot()` returns a sorted array of fresh serializable records.
+Each record contains the stable `id`, optional display metadata, `tags`, `routes`,
+`hasLaunchHandler`, and `isActive`; it intentionally contains no command handle,
+handler, or mutable registry object. `subscribeStateLauncher(listener)` calls
+the listener with a fresh snapshot after registered records, handler
+availability, or committed active-state status changes. Read an initial snapshot
+before subscribing when the consumer needs an initial catalog.
+
+`launchStateLauncherCommand(id)` resolves only after the registered handlers
+finish successfully and rejects the same missing-handler, setup, cleanup, and
+abort errors as `launchCommand()`. `clearActiveState()` aborts the active signal
+and resolves after known cleanup functions finish, without unregistering the
+command. These functions are intended for an integration/controller surface
+during development or tests. They do not provide production navigation,
+feature flags, or a model of end-user state.
+
 ## API selection
 
 Use the root entrypoint for framework-neutral registration, launching, cleanup, and mounting:
@@ -112,6 +143,18 @@ import {
   registerLaunchableState,
   unregisterCommand,
 } from 'state-launcher'
+```
+
+Use `state-launcher/headless` when the host needs a serializable catalog and
+id-based launch/clear operations without mounting the panel:
+
+```ts
+import {
+  clearActiveState,
+  getStateLauncherSnapshot,
+  launchStateLauncherCommand,
+  subscribeStateLauncher,
+} from 'state-launcher/headless'
 ```
 
 Use `state-launcher/react` when a React component should own a handler lifetime:

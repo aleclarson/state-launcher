@@ -48,7 +48,18 @@ export type StateLauncherCommand<Id extends string = string> = {
   readonly routes?: readonly StateLauncherRoutePattern[];
   launch(): Promise<void>;
 };
+export type StateLauncherCommandSnapshot = Readonly<{
+  id: string;
+  label?: string;
+  description?: string;
+  tags: readonly string[];
+  routes: readonly StateLauncherRoutePattern[];
+  hasLaunchHandler: boolean;
+  isActive: boolean;
+}>;
 export type StateLauncherRoutePattern = string;
+export type StateLauncherSnapshot = readonly StateLauncherCommandSnapshot[];
+export type StateLauncherSnapshotListener = (_: StateLauncherSnapshot) => void;
 // #endregion
 
 // #region Functions

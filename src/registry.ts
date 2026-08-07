@@ -4,6 +4,8 @@ import type {
   LaunchContext,
   LaunchHandler,
   StateLauncherCommand,
+  StateLauncherSnapshot,
+  StateLauncherSnapshotListener,
 } from './index'
 import { signIn, signOut } from './launcher-auth'
 import { normalizeRoutePattern } from './route-pattern'
@@ -157,6 +159,11 @@ function unregisterRegistration(registration: CommandRegistration): void {
   }
 
   refreshCommandRecord(record)
+  // A latest duplicate-id registration may be disposed by HMR. Point the id
+  // index at the remaining contribution before the record is observed again.
+  if (registry.commandsById.get(record.id) !== record.command) {
+    registry.commandsById.set(record.id, record.command)
+  }
 
   if (
     record.registrations.size === 0 &&
@@ -290,8 +297,8 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
         id: record.id,
         label: record.label,
         description: record.description,
-        tags: record.tags ?? [],
-        routes: record.routes ?? [],
+        tags: record.tags ? [...record.tags] : [],
+        routes: record.routes ? [...record.routes] : [],
         hasLaunchHandler: record.launchHandlers.size > 0,
         isActive: record.id === committedLaunch?.id,
       })
@@ -301,12 +308,34 @@ export function listCommandRecords(): CommandRecordSnapshot[] {
   return records.sort((left, right) => left.id.localeCompare(right.id))
 }
 
+/** Read a fresh serializable snapshot of all currently registered commands. */
+export function getStateLauncherSnapshot(): StateLauncherSnapshot {
+  return listCommandRecords().map((record) => ({
+    id: record.id,
+    label: record.label,
+    description: record.description,
+    tags: [...record.tags],
+    routes: [...record.routes],
+    hasLaunchHandler: record.hasLaunchHandler,
+    isActive: record.isActive,
+  }))
+}
+
 export function subscribeCommandRecords(listener: () => void): () => void {
   registry.listeners.add(listener)
 
   return () => {
     registry.listeners.delete(listener)
   }
+}
+
+/**
+ * Observe registry and committed active-state changes with a fresh snapshot.
+ * The listener is not called until the registry changes; read a snapshot first
+ * when an initial catalog is needed.
+ */
+export function subscribeStateLauncher(listener: StateLauncherSnapshotListener): () => void {
+  return subscribeCommandRecords(() => listener(getStateLauncherSnapshot()))
 }
 
 export function setCommandLaunchHandler(

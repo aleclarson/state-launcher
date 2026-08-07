@@ -79,6 +79,30 @@ export type StateLauncherCommand<Id extends string = string> = {
   launch(): Promise<void>
 }
 
+/** Serializable record describing one registered command. */
+export type StateLauncherCommandSnapshot = Readonly<{
+  /** Stable command id. */
+  id: string
+  /** Human-readable label, when one was provided. */
+  label?: string
+  /** Short explanation, when one was provided. */
+  description?: string
+  /** Searchable tags. */
+  tags: readonly string[]
+  /** Pathname patterns used for route-aware UI ranking. */
+  routes: readonly StateLauncherRoutePattern[]
+  /** Whether at least one launch handler is currently available. */
+  hasLaunchHandler: boolean
+  /** Whether this command is the committed active state. */
+  isActive: boolean
+}>
+
+/** Current serializable catalog of registered commands. */
+export type StateLauncherSnapshot = readonly StateLauncherCommandSnapshot[]
+
+/** Receives a fresh command catalog after the registry changes. */
+export type StateLauncherSnapshotListener = (snapshot: StateLauncherSnapshot) => void
+
 /** Cleanup registered or returned by a launch handler while its state is active. */
 export type LaunchCleanup = () => void | Promise<void>
 

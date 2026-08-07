@@ -26,6 +26,10 @@
     "./react": {
       "types": "./dist/react.d.mts",
       "default": "./dist/react.mjs"
+    },
+    "./headless": {
+      "types": "./dist/headless.d.mts",
+      "default": "./dist/headless.mjs"
     }
   },
   "scripts": {
