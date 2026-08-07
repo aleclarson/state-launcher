@@ -39,6 +39,8 @@
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit && tsc -p test --noEmit",
     "test": "vitest",
+    "docs:build": "pnpm build && lildocs build ./docs --out dist/docs",
+    "docs:dev": "pnpm build && lildocs dev ./docs",
     "playground": "vite playground --host 127.0.0.1",
     "prepublishOnly": "pnpm build"
   },

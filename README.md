@@ -1,83 +1,57 @@
 # state-launcher
 
-`state-launcher` is a dev/test-only command launcher for putting an application into named states from an isolated in-page panel or a headless controller surface.
+`state-launcher` is a dev/test-only command launcher for putting an application
+into named states such as `billing.paymentFailed` or `inbox.manyMessages`.
 
-Use it when you want QA, designers, or developers to jump directly to states such as `billing.paymentFailed` or `inbox.manyMessages` without wiring those states into production navigation.
+The package keeps command registration and state transitions in the host
+application. You can provide its browser panel to developers, or use the same
+registry through a headless controller when another development host should
+render the catalog.
 
-## Fit
+## Choose a surface
 
-Use this package if you need:
+| Surface             | Use it when                                                  | It provides                                                                                 |
+| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Browser launcher    | Developers or QA need an in-page command panel.              | Shadow DOM-isolated UI, search, route-aware ranking, recent commands, errors, and Clear.    |
+| Headless controller | A retained WebView or another host owns the command browser. | Serializable snapshots, change subscriptions, id-based launches, and active-state clearing. |
 
-- a small browser UI for launching registered app states during development or tests
-- a serializable command catalog and headless controller API for a retained WebView or other host integration
-- command definitions that can live separately from the code that knows how to enter a state
-- direct programmatic launching for tests or setup scripts
-- Shadow DOM style isolation so the launcher does not inherit app CSS
-- React and Preact lifecycle hooks for attaching launch handlers while components are mounted
+Both surfaces use the same singleton registry, launch handlers, abort signals,
+cleanup functions, and active-state transitions. The headless entry point does
+not mount the panel or import its Preact UI.
 
-Do not use it if you need:
+## Fit and boundaries
 
-- production feature flags, routing, or end-user navigation
-- cross-device history, acknowledgements, parameters, or event inspection
-- mock-server orchestration or data seeding built into the package
-- framework integrations beyond the exported React and Preact hooks
+Use State Launcher for development tools, QA workflows, test setup, and
+component-owned launch handlers. Do not use it for production navigation,
+feature flags, end-user state, cross-device history, mock-server orchestration,
+or data seeding.
 
-## Requirements and tradeoff
+The package is ESM and browser/WebView-oriented. The browser panel uses Preact;
+the React hook uses the optional React peer dependency. The headless bundle has
+no DOM-mounting or Preact runtime path, but commands still need to be registered
+and handled by the WebView-side application.
 
-`state-launcher` is browser-only and ESM-only. Its launcher UI depends on Preact,
-`@preact/signals`, `isolet-js`, and `fuzzysort2`. The `state-launcher/react`
-entry point has an optional React peer dependency, so framework-neutral and
-Preact consumers do not need to install React.
+## Browser example
 
-The main tradeoff is explicit host ownership: the launcher owns discovery, filtering, UI, lifecycle cleanup, disabled display for commands without handlers, and error display, but your application owns every state transition. That keeps the package small and framework-light, but it means you must register realistic handlers wherever your app already has the knowledge to build those states.
-
-Only one launcher may be mounted at a time. Unmount the current launcher before
-mounting another one.
-
-## Install
-
-```sh
-pnpm add state-launcher
-```
-
-## Minimal example
-
-This example proves the core workflow: define stable command handles, register the
-ones that should appear in the launcher, mount the isolated panel, and still
-launch the same command without opening the panel.
+This example defines one stable command, registers it for discovery, mounts the
+panel, and launches the same command programmatically:
 
 ```ts
 import { defineLaunchableState, mountStateLauncher, registerLaunchableState } from 'state-launcher'
 
-export const paymentFailed = defineLaunchableState('billing.paymentFailed', {
+const paymentFailed = defineLaunchableState('billing.paymentFailed', {
   label: 'Payment failed',
-  description: 'Customer has a failed payment method.',
+  description: 'Show the billing surface with a failed payment method.',
   tags: ['billing', 'card'],
-  routes: ['/billing/*'],
-  async launch({ signIn }) {
-    await signIn()
-    await createFailedPaymentMethod()
-    await navigateToBilling()
+  launch() {
+    document.body.dataset.debugState = 'billing.paymentFailed'
   },
 })
 
-const unregisterStates = registerLaunchableState([paymentFailed])
+const unregister = registerLaunchableState([paymentFailed])
+import.meta.hot?.dispose(unregister)
 
-import.meta.hot?.dispose(unregisterStates)
-
-const launcher = mountStateLauncher({
-  auth: {
-    isSignedIn: Boolean(currentUser),
-    onSignIn: () => signInAsTestUser(),
-    onSignOut: () => signOutTestUser(),
-  },
-  target: document.body,
-  initiallyOpen: false,
-  position: 'bottom-right',
-  showPathname: true,
-  title: 'App states',
-})
-
+const launcher = mountStateLauncher({ title: 'App states' })
 document.querySelector('#open-state-launcher')?.addEventListener('click', () => {
   launcher.toggle()
 })
@@ -85,12 +59,10 @@ document.querySelector('#open-state-launcher')?.addEventListener('click', () => 
 await paymentFailed.launch()
 ```
 
-## Headless controller surface
+## Headless example
 
-Use `state-launcher/headless` when the retained WebView should keep the registry
-and launch lifecycle but a host wants to provide its own command browser. This
-entry point does not import Preact, mount a Shadow DOM, or render the launcher
-panel. It observes the same singleton registry used by the browser UI:
+Use the dedicated entry point when the host needs records and commands without
+mounting the browser panel:
 
 ```ts
 import {
@@ -100,244 +72,31 @@ import {
   subscribeStateLauncher,
 } from 'state-launcher/headless'
 
-const publishCommandCatalog = (snapshot: ReturnType<typeof getStateLauncherSnapshot>) => {
+const publishCatalog = (snapshot: ReturnType<typeof getStateLauncherSnapshot>) => {
   console.log(JSON.stringify(snapshot))
 }
 
-publishCommandCatalog(getStateLauncherSnapshot())
-const unsubscribe = subscribeStateLauncher(publishCommandCatalog)
+publishCatalog(getStateLauncherSnapshot())
+const unsubscribe = subscribeStateLauncher(publishCatalog)
 
 await launchStateLauncherCommand('billing.paymentFailed')
 await clearActiveState()
-
 unsubscribe()
 ```
 
-Each snapshot contains only serializable command records: `id`, display
-metadata, `tags`, `routes`, `hasLaunchHandler`, and `isActive`. The subscription
-receives a fresh snapshot after registration, unregistration, handler
-availability, and committed active-state changes. Launching by id uses the same
-handlers, `AbortSignal`, cleanup functions, and error behavior as the panel.
-Clear resolves after active cleanup completes. This is an integration/controller
-surface for development and testing; it is not production navigation, a feature
-flag system, or a representation of end-user application state.
+## Documentation
 
-`position` selects one of four fixed desktop corners. At viewport widths of
-`1024px` and below, the package uses a fullscreen bottom drawer regardless of the
-selected corner. The drawer leaves a safe-area-aware strip above its rounded top
-corners; tap that strip or swipe down from the pill above the utility row to
-close it.
-No consumer Shadow DOM overrides are needed.
+- [Public docs home](docs/index.md)
+- [Getting started](docs/getting-started.md)
+- [Browser launcher guide](docs/guides/browser-launcher.md)
+- [Headless controller guide](docs/guides/headless-controller.md)
+- [Lifecycle and ownership](docs/concepts/lifecycle.md)
+- Generated API pages for the root, React, Preact, and headless entry points are
+  produced by lildocs from the package declarations.
 
-`mountStateLauncher()` does not render its own persistent trigger. Use the
-returned controller to wire the launcher to an app-owned button, menu item,
-keyboard shortcut, or test helper.
-
-Set `showPathname: true` to add home and editable-pathname controls to the
-scrollable utility row at the top of the command list. Use `homePath` when the
-home destination depends on the launcher's current authentication state:
-
-```ts
-mountStateLauncher({
-  showPathname: true,
-  auth: {
-    isSignedIn: Boolean(currentUser),
-    onSignIn: () => signInAsTestUser(),
-    onSignOut: () => signOutTestUser(),
-    homePath: ({ isSignedIn }) => (isSignedIn ? '/dashboard' : '/'),
-  },
-})
-```
-
-After a command's setup resolves, the launcher marks it as active. Reopen the
-panel and choose Clear to abort its launch signal and run its returned cleanup
-functions without unregistering any commands. The active marker remains through
-teardown and disappears when cleanup finishes. The same operation is available
-programmatically through `clearActiveState()`.
-
-Pass the current `auth.isSignedIn` status with `auth.onSignIn` and
-`auth.onSignOut` to add an authentication toggle beside the refresh button in
-the utility row:
-
-```ts
-mountStateLauncher({
-  auth: {
-    isSignedIn: Boolean(currentUser),
-    onSignIn: () => signInAsTestUser(),
-    onSignOut: () => signOutTestUser(),
-  },
-})
-```
-
-The toggle initially offers the action opposite `isSignedIn`. After an action
-succeeds, it switches to the opposite action and briefly confirms the new state
-without closing the launcher. While an async handler is pending the toggle is
-disabled; if a handler rejects, the launcher displays the error and keeps the
-current action available. Omit `auth` to hide the toggle.
-
-The same configured actions are available to launch handlers as `signIn()` and
-`signOut()`. Each method invokes its callback only when the launcher is in the
-opposite authentication state, so repeated or concurrent calls are safe. A
-successful call updates the toggle and `homePath` state. Calling either method
-without a mounted launcher configured with `auth` rejects.
-
-The launcher keeps successful launches from the past 24 hours in local storage.
-When the search is empty, up to three registered commands with the most recent
-launches appear in a leading Recent group. Search results continue to use launch
-frequency as a ranking hint, highlight the text that contributed to each match,
-and reveal only matching tags.
-
-Commands can declare pathname patterns with `routes` to boost states that are
-relevant to the current page:
-
-```ts
-defineLaunchableState('billing.paymentFailed', {
-  label: 'Payment failed',
-  routes: ['/billing', '/billing/invoices/*'],
-})
-```
-
-Exact patterns match one normalized pathname. A terminal `/*` matches that
-pathname and its descendants; query strings and hashes are ignored. With an
-empty search, matching launchable commands appear in an `On this route` group
-before recent commands. During search, they remain in the flat global result
-list but receive the same ranking boost. Route relevance never moves a command
-without a launch handler above a launchable command.
-
-The launcher rechecks route relevance when it opens and when browser history
-navigation emits `popstate`. For single-page navigations that call
-`history.pushState()` or `history.replaceState()`, call the mounted controller's
-`refresh()` method after changing the URL.
-
-`defineLaunchableState()` is annotated as side-effect free, and the package marks
-its modules as side-effect free for bundlers. Keep `registerLaunchableState()`
-and `mountStateLauncher()` in dev-only code paths when you want production
-bundles to drop launchable-state definitions.
-
-`registerLaunchableState()` returns an idempotent cleanup function. Pass it to
-`import.meta.hot.dispose()` when registering from a Vite HMR module so stale
-commands from the previous module instance are removed before the replacement
-module registers its command list.
-
-## Framework lifecycle hooks
-
-Use `state-launcher/react` when React components own launch handler lifetimes.
-For a state owned by one component, define it directly through the hook. The
-returned handle is stable across rerenders and can launch the state directly;
-the command is discoverable only while the component is mounted.
-
-```tsx
-import { useLaunchableState } from 'state-launcher/react'
-
-export function BillingDebugState() {
-  const paymentFailed = useLaunchableState('billing.paymentFailed', {
-    label: 'Payment failed',
-    tags: ['billing', 'card'],
-    async launch({ signal }) {
-      await signInAsTestUser({ signal })
-      await createFailedPaymentMethod({ signal })
-      await navigateToBilling()
-    },
-  })
-
-  return <button onClick={() => paymentFailed.launch()}>Preview failed payment</button>
-}
-```
-
-When several components contribute handlers to one state, define the command
-in their nearest shared parent module and pass that handle to each component:
-
-```tsx
-import { useLaunchableState } from 'state-launcher/react'
-import { paymentFailed } from './launchable-states'
-
-export function BillingDebugState() {
-  useLaunchableState(paymentFailed, async ({ signal }) => {
-    await signInAsTestUser({ signal })
-    await createFailedPaymentMethod({ signal })
-    await navigateToBilling()
-  })
-
-  return null
-}
-```
-
-In either form, rerenders update the handler closure without re-registering the
-command. Local-definition metadata initializes with the stable handle; use a
-shared command when metadata or ownership needs to live outside one component.
-
-Use `state-launcher/preact` when a component owns one launch handler's lifetime.
-Metadata still belongs on `defineLaunchableState`; the hook only attaches and
-detaches its handler.
-
-```tsx
-import { useLaunchableState } from 'state-launcher/preact'
-import { paymentFailed } from './launchable-states'
-
-export function BillingDebugState() {
-  useLaunchableState(paymentFailed, async ({ signal }) => {
-    await signInAsTestUser({ signal })
-    await createFailedPaymentMethod({ signal })
-    await navigateToBilling()
-  })
-
-  return null
-}
-```
-
-A command may have multiple launch handlers. Launch order is intentionally not
-part of the API contract. A command becomes the active state after its launch
-handlers resolve; handlers attached later for the active command fire
-immediately so conditional UI can continue entering that state as it mounts.
-
-Launch handlers may return a cleanup function. Cleanup functions run when a
-different command launch begins, before the new state's launch handlers run.
-That lets a launched state undo temporary setup when the launcher moves to
-another state.
-
-For async setup, register cleanup as soon as each resource is acquired with
-`defer()`. Deferred cleanup is retained after successful setup, runs in reverse
-registration order, and also runs if setup later throws or the launch is aborted
-while the handler is still pending:
-
-```ts
-const paymentFailed = defineLaunchableState('billing.paymentFailed', {
-  async launch({ defer, signal }) {
-    const authOverride = installTestAuthOverride()
-    defer(() => authOverride.dispose())
-
-    const paymentMethod = await createFailedPaymentMethod({ signal })
-    defer(() => paymentMethod.remove())
-
-    await navigateToBilling()
-  },
-})
-```
-
-A cleanup registered after the signal has already aborted starts immediately.
-Each registration runs at most once. Handlers may continue returning one cleanup
-function; it behaves as the handler's final cleanup registration.
-
-Launch handlers receive a context with an `AbortSignal`. The signal aborts when
-another command id is activated or the active command is cleared, so async setup
-can cancel stale work. If an aborted handler eventually returns a cleanup
-function, the launcher runs it immediately instead of retaining it for the new
-active state.
-
-## Documentation map
-
-- [`docs/context.md`](docs/context.md): concepts, lifecycle, command identity, and API-selection guidance.
-- [`examples/main.ts`](examples/main.ts): runnable demo registration, filtering, command chaining, and error display.
-- Type declarations from the package are the exact API reference.
-
-Run the local demo with:
+Build or preview the docs with:
 
 ```sh
-pnpm demo
-```
-
-Run the launcher UI playground with:
-
-```sh
-pnpm playground
+pnpm docs:build
+pnpm docs:dev
 ```
