@@ -1,6 +1,6 @@
 # Getting Started
 
-> Register one stable command, choose the browser or headless surface, and verify that the host application still owns the state transition.
+> Register one stable command, choose the browser or headless surface, and verify that the application still owns the state transition.
 
 ## Install
 
@@ -8,9 +8,10 @@
 pnpm add state-launcher
 ```
 
-State Launcher is ESM and intended for browser or WebView development builds.
-The browser panel requires Preact. The React hook requires React; the React peer
-dependency is optional when the hook is not used.
+State Launcher is ESM. The browser panel requires Preact and a browser DOM. The
+React hook requires React; the React peer dependency is optional when the hook
+is not used. The headless entry point does not mount UI and uses the same
+registry and launch lifecycle.
 
 ## Define and register a command
 
@@ -46,7 +47,7 @@ Registration makes a command discoverable. A command without a currently
 available handler remains visible but cannot be launched.
 
 > [!IMPORTANT]
-> Keep `registerLaunchableState()` and the surface you mount in a development or test path when production bundles should remove the launcher integration.
+> Keep `registerLaunchableState()` and the surface you mount in a development or test path when production bundles should remove the launcher code.
 
 ## Choose the surface
 
@@ -65,10 +66,10 @@ document.querySelector('#open-state-launcher')?.addEventListener('click', () => 
 })
 ```
 
-For a host-owned command browser, import `state-launcher/headless` instead. The
-headless surface reads the commands already registered in the same WebView;
-registration still comes from the root entry point. Continue with the
-[headless controller guide](guides/headless-controller.md).
+For an externally rendered command browser, import `state-launcher/headless`
+instead. The headless surface reads commands already registered through the
+root entry point; it does not create a second registry or launch lifecycle.
+Continue with the [headless API guide](guides/headless-controller.md).
 
 ## Verify a launch
 
@@ -89,6 +90,6 @@ handlers resolve.
 ## Next steps
 
 - Configure the panel in the [browser launcher guide](guides/browser-launcher.md).
-- Connect a host catalog in the [headless controller guide](guides/headless-controller.md).
+- Add an external catalog in the [headless API guide](guides/headless-controller.md).
 - Attach handlers to component lifetimes with the [framework hooks guide](guides/framework-hooks.md).
 - Read [lifecycle and ownership](concepts/lifecycle.md) before composing multiple handlers or async cleanup.

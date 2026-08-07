@@ -31,7 +31,7 @@ active state unchanged.
 
 | Option          | Default          | Use it for                                                      |
 | --------------- | ---------------- | --------------------------------------------------------------- |
-| `target`        | `document.body`  | Choose the element that receives the isolated host.             |
+| `target`        | `document.body`  | Choose the element that receives the isolated launcher panel.   |
 | `initiallyOpen` | `false`          | Open the panel immediately after mounting.                      |
 | `position`      | `'bottom-right'` | Choose a desktop corner; smaller viewports use a bottom drawer. |
 | `title`         | `'Commands'`     | Set the accessible dialog label.                                |
@@ -103,6 +103,6 @@ Clearing does not unregister commands. The active marker remains visible until
 cleanup finishes, then disappears.
 
 For async setup and cleanup ordering, see
-[lifecycle and ownership](../concepts/lifecycle.md). For a host-owned browser,
-use the [headless controller](headless-controller.md) instead of mounting this
+[lifecycle and ownership](../concepts/lifecycle.md). For an external browser UI,
+use the [headless API](headless-controller.md) instead of mounting this
 panel.

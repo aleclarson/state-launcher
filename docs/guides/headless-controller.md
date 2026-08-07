@@ -1,11 +1,11 @@
-# Headless Controller
+# Headless API
 
-> Use the retained WebView as the state controller while another development host renders the command catalog and sends stable command ids.
+> Expose the registered command catalog to an external development surface without mounting the browser launcher.
 
-The headless entry point is an integration surface, not a second registry. It
-does not mount the browser panel and does not import Preact, Shadow DOM, or DOM
-rendering code. Define and register commands through the root entry point, then
-read and control those same records through `state-launcher/headless`.
+The headless entry point is an additional API surface, not a second registry.
+It does not mount the browser panel and does not import Preact, Shadow DOM, or
+DOM rendering code. Define and register commands through the root entry point,
+then read and control those same records through `state-launcher/headless`.
 
 ## Subscribe to the catalog
 
@@ -34,12 +34,12 @@ const unsubscribe = subscribeStateLauncher(publishCatalog)
 ```
 
 The subscription does not call its listener immediately. Read the initial
-snapshot before subscribing when the host needs a catalog on startup. Each
+snapshot before subscribing when a consumer needs a catalog on startup. Each
 callback receives a new sorted array and new metadata arrays, so changing a
 received snapshot cannot mutate the registry.
 
 The listener runs after registered commands, handler availability, or committed
-active-state status changes. Unsubscribe when the host no longer needs updates.
+active-state status changes. Unsubscribe when updates are no longer needed.
 
 ## Snapshot records
 
@@ -56,8 +56,8 @@ internal registry object:
 | `hasLaunchHandler` | `boolean`             | Whether at least one handler is currently available. |
 | `isActive`         | `boolean`             | Whether this is the committed active state.          |
 
-The snapshot intentionally describes what a host may display; it does not make
-the host responsible for state transitions or cleanup.
+The snapshot intentionally describes what a consumer may display; it does not
+make the consumer responsible for state transitions or cleanup.
 
 ## Launch and clear by id
 
@@ -85,12 +85,12 @@ When a second id is launched, the previous active state remains committed until
 its teardown completes. The subscription then reports no active state while the
 new setup is pending, followed by the new active record after setup succeeds.
 
-## Keep transport outside this package
+## Keep surrounding concerns outside this package
 
 The headless API deliberately stops at snapshots, stable ids, and lifecycle
-promises. A host may forward those values through its own integration, but this
-package does not define a transport protocol, bridge, navigation model, or
-end-user state schema.
+promises. What consumes those values and how they connect to the rest of an
+application are outside this package. The headless API does not provide
+production navigation or an end-user state schema.
 
 For the cleanup and abort rules that apply to both surfaces, read
 [lifecycle and ownership](../concepts/lifecycle.md). For generated signatures,

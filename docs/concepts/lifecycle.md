@@ -1,10 +1,10 @@
 # Lifecycle and Ownership
 
-> Commands describe discoverable development states, while the host application owns setup, teardown, and the meaning of every transition.
+> Commands describe discoverable development states, while the application owns setup, teardown, and the meaning of every transition.
 
 State Launcher has one process-local registry. A command handle is a stable
 definition; registration makes it visible; handlers provide the behavior. The
-browser launcher and headless controller observe and use the same records.
+browser launcher and headless API observe and use the same records.
 
 ## Command identity
 
@@ -97,6 +97,6 @@ subscriptions.
 ## What this model is not
 
 The registry is not production navigation, a feature-flag store, or end-user
-state. It does not define parameters, history, acknowledgements, transport, or
-data seeding. The host application owns the actual state transition and decides
-how cleanup restores the application.
+state. It does not define parameters, history, or data seeding. The application
+owns the actual state transition and decides how cleanup restores the
+application.

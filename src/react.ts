@@ -9,7 +9,7 @@ import {
 
 /** Options for a command owned and defined by one React component. */
 export type UseLaunchableStateOptions = Omit<LaunchableStateOptions, 'launch'> & {
-  /** Handler that puts the host application into this state. */
+  /** Handler that puts the application into this state. */
   launch: LaunchHandler
 }
 

@@ -12,7 +12,7 @@ export { mountStateLauncher } from './launcher'
 export type MountStateLauncherOptions = {
   /** Optional authentication actions exposed to the UI and launch handlers. */
   auth?: StateLauncherAuthOptions
-  /** Element that receives the launcher host. Defaults to `document.body`. */
+  /** Element that receives the launcher panel. Defaults to `document.body`. */
   target?: HTMLElement
   /** Whether the command panel is open immediately after mount. Defaults to `false`. */
   initiallyOpen?: boolean
@@ -127,7 +127,7 @@ export type LaunchContext = {
   signOut(): Promise<void>
 }
 
-/** Handler that puts the host application into a launchable state. */
+/** Handler that puts the application into a launchable state. */
 export type LaunchHandler = (
   context: LaunchContext,
 ) => void | LaunchCleanup | Promise<void | LaunchCleanup>
@@ -142,6 +142,6 @@ export type LaunchableStateOptions = {
   tags?: string[]
   /** Pathname patterns that boost this command on matching routes. */
   routes?: readonly StateLauncherRoutePattern[]
-  /** Handler that puts the host application into this state. */
+  /** Handler that puts the application into this state. */
   launch?: LaunchHandler
 }
