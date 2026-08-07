@@ -54,6 +54,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "happy-dom": "^20.10.1",
+    "lildocs": "^0.1.25",
     "oxfmt": "^0.53.0",
     "oxlint": "^1.68.0",
     "preact": "^10.29.2",
